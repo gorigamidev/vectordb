@@ -1,6 +1,6 @@
-# vector-db-rs
+#  VECTORDB
 
-`vector-db-rs` is an experimental **in-memory tensor database and DSL engine** written in Rust.
+`vectordb` is an experimental **in-memory tensor database and DSL engine** written in Rust.
 
 The goal of the project is to explore how a **small, high-level “pseudocode in English” language** can sit on top of a tensor store and provide building blocks for **vector/tensor operations, ML-style feature engineering and experimentation**.
 
