@@ -11,6 +11,8 @@ pub struct Field {
     pub name: String,
     pub value_type: ValueType,
     pub nullable: bool,
+    #[serde(default)]
+    pub is_lazy: bool, // True if this column is computed lazily (evaluated on access)
 }
 
 impl Field {
@@ -19,11 +21,17 @@ impl Field {
             name: name.into(),
             value_type,
             nullable: false,
+            is_lazy: false,
         }
     }
 
     pub fn nullable(mut self) -> Self {
         self.nullable = true;
+        self
+    }
+
+    pub fn lazy(mut self) -> Self {
+        self.is_lazy = true;
         self
     }
 
@@ -131,6 +139,8 @@ impl Tuple {
     }
 
     /// Get value by field name
+    /// Note: For lazy columns, this returns the placeholder (NULL).
+    /// Use Dataset::get_row_evaluated() or Dataset::evaluate_lazy_column() for lazy evaluation.
     pub fn get(&self, field_name: &str) -> Option<&Value> {
         self.schema
             .get_field_index(field_name)

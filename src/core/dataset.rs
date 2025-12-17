@@ -88,6 +88,7 @@ impl DatasetMetadata {
 }
 
 use crate::core::index::Index;
+use crate::query::logical::Expr;
 
 /// Dataset represents a table-like collection of tuples
 #[derive(Debug, Clone, Serialize)]
@@ -98,6 +99,8 @@ pub struct Dataset {
     pub metadata: DatasetMetadata,
     #[serde(skip)]
     pub indices: HashMap<String, Box<dyn Index>>,
+    #[serde(skip)]
+    pub lazy_expressions: HashMap<String, Expr>, // column_name -> expression for lazy evaluation
 }
 
 impl Dataset {
@@ -112,6 +115,7 @@ impl Dataset {
             rows: Vec::new(),
             metadata,
             indices: HashMap::new(),
+            lazy_expressions: HashMap::new(),
         }
     }
 
@@ -138,6 +142,7 @@ impl Dataset {
             rows,
             metadata,
             indices: HashMap::new(),
+            lazy_expressions: HashMap::new(),
         })
     }
 
@@ -196,6 +201,7 @@ impl Dataset {
             rows: filtered_rows,
             metadata: self.metadata.clone(),
             indices: HashMap::new(), // Indices are not preserved on filter for now
+            lazy_expressions: self.lazy_expressions.clone(), // Preserve lazy expressions
         };
 
         new_dataset
@@ -232,12 +238,21 @@ impl Dataset {
             new_rows.push(Tuple::new(new_schema.clone(), new_values)?);
         }
 
+        // Preserve lazy expressions for selected columns
+        let mut new_lazy_expressions = HashMap::new();
+        for &col_name in column_names {
+            if let Some(expr) = self.lazy_expressions.get(col_name) {
+                new_lazy_expressions.insert(col_name.to_string(), expr.clone());
+            }
+        }
+
         let mut new_dataset = Self {
             id: self.id,
             schema: new_schema.clone(),
             rows: new_rows,
             metadata: self.metadata.clone(),
             indices: HashMap::new(),
+            lazy_expressions: new_lazy_expressions,
         };
 
         new_dataset
@@ -256,6 +271,7 @@ impl Dataset {
             rows: taken_rows,
             metadata: self.metadata.clone(),
             indices: HashMap::new(),
+            lazy_expressions: self.lazy_expressions.clone(),
         };
 
         new_dataset
@@ -274,6 +290,7 @@ impl Dataset {
             rows: skipped_rows,
             metadata: self.metadata.clone(),
             indices: HashMap::new(),
+            lazy_expressions: self.lazy_expressions.clone(),
         };
 
         new_dataset
@@ -309,6 +326,7 @@ impl Dataset {
             rows: sorted_rows,
             metadata: self.metadata.clone(),
             indices: HashMap::new(),
+            lazy_expressions: self.lazy_expressions.clone(),
         })
     }
 
@@ -325,6 +343,7 @@ impl Dataset {
             rows: mapped_rows,
             metadata: self.metadata.clone(),
             indices: HashMap::new(),
+            lazy_expressions: self.lazy_expressions.clone(),
         };
 
         new_dataset
@@ -339,12 +358,28 @@ impl Dataset {
             .get_field_index(column_name)
             .ok_or_else(|| format!("Column '{}' not found", column_name))?;
 
-        let mut column_values = Vec::with_capacity(self.rows.len());
-        for row in &self.rows {
-            column_values.push(row.values[col_idx].clone());
+        // Check if this is a lazy column
+        let field = &self.schema.fields[col_idx];
+        if field.is_lazy {
+            // Evaluate lazy expression for each row
+            use crate::query::physical::evaluate_expression;
+            let expr = self.lazy_expressions.get(column_name)
+                .ok_or_else(|| format!("Lazy expression not found for column '{}'", column_name))?;
+            
+            let mut column_values = Vec::with_capacity(self.rows.len());
+            for row in &self.rows {
+                let val = evaluate_expression(expr, row);
+                column_values.push(val);
+            }
+            Ok(column_values)
+        } else {
+            // Regular column - just extract values
+            let mut column_values = Vec::with_capacity(self.rows.len());
+            for row in &self.rows {
+                column_values.push(row.values[col_idx].clone());
+            }
+            Ok(column_values)
         }
-
-        Ok(column_values)
     }
 
     /// Add an index to a column
@@ -406,6 +441,7 @@ impl Dataset {
             name: column_name.clone(),
             value_type,
             nullable,
+            is_lazy: false,
         });
         let new_schema = Arc::new(Schema::new(new_fields));
 
@@ -427,61 +463,163 @@ impl Dataset {
 
     /// Add a computed column to the dataset
     /// This evaluates an expression for each row and adds the result as a new column
+    /// If lazy is true, stores NULL placeholders and evaluates on access
     pub fn add_computed_column(
         &mut self,
         column_name: String,
         value_type: ValueType,
         computed_values: Vec<Value>,
-        _expression: crate::query::logical::Expr, // Store for future lazy evaluation
+        expression: crate::query::logical::Expr,
+        lazy: bool,
     ) -> Result<(), String> {
         // Validate that column doesn't already exist
         if self.schema.get_field(column_name.as_str()).is_some() {
             return Err(format!("Column '{}' already exists", column_name));
         }
 
-        // Validate that computed values match the number of rows
-        if computed_values.len() != self.rows.len() {
-            return Err(format!(
-                "Computed values count ({}) doesn't match row count ({})",
-                computed_values.len(),
-                self.rows.len()
-            ));
-        }
-
-        // Validate that all computed values match the type
-        for (i, val) in computed_values.iter().enumerate() {
-            if !val.matches_type(&value_type) {
-                return Err(format!(
-                    "Computed value at row {} type mismatch: expected {:?}, got {:?}",
-                    i,
-                    value_type,
-                    val.value_type()
-                ));
-            }
-        }
-
         // Create new schema with the additional field
         let mut new_fields = self.schema.fields.clone();
-        new_fields.push(super::tuple::Field {
+        let new_field = super::tuple::Field {
             name: column_name.clone(),
-            value_type,
-            nullable: false, // Computed columns are not nullable
-        });
+            value_type: value_type.clone(),
+            nullable: lazy, // Lazy columns can have NULL placeholders
+            is_lazy: lazy,
+        };
+        new_fields.push(new_field.clone());
         let new_schema = Arc::new(Schema::new(new_fields));
 
-        // Update all existing rows to include the computed column
-        let mut new_rows = Vec::with_capacity(self.rows.len());
-        for (row, computed_val) in self.rows.iter().zip(computed_values.iter()) {
-            let mut new_values = row.values.clone();
-            new_values.push(computed_val.clone());
-            new_rows.push(Tuple::new(new_schema.clone(), new_values)?);
+        if lazy {
+            // For lazy columns, store NULL placeholders and save expression
+            let mut new_rows = Vec::with_capacity(self.rows.len());
+            for row in &self.rows {
+                let mut new_values = row.values.clone();
+                new_values.push(Value::Null); // Placeholder for lazy column
+                new_rows.push(Tuple::new(new_schema.clone(), new_values)?);
+            }
+            self.rows = new_rows;
+            self.lazy_expressions.insert(column_name.clone(), expression);
+        } else {
+            // Materialized: validate and store computed values
+            // Validate that computed values match the number of rows
+            if computed_values.len() != self.rows.len() {
+                return Err(format!(
+                    "Computed values count ({}) doesn't match row count ({})",
+                    computed_values.len(),
+                    self.rows.len()
+                ));
+            }
+
+            // Validate that all computed values match the type
+            for (i, val) in computed_values.iter().enumerate() {
+                if !val.matches_type(&new_field.value_type) {
+                    return Err(format!(
+                        "Computed value at row {} type mismatch: expected {:?}, got {:?}",
+                        i,
+                        new_field.value_type,
+                        val.value_type()
+                    ));
+                }
+            }
+
+            // Update all existing rows to include the computed column
+            let mut new_rows = Vec::with_capacity(self.rows.len());
+            for (row, computed_val) in self.rows.iter().zip(computed_values.iter()) {
+                let mut new_values = row.values.clone();
+                new_values.push(computed_val.clone());
+                new_rows.push(Tuple::new(new_schema.clone(), new_values)?);
+            }
+            self.rows = new_rows;
         }
 
         // Update dataset
         self.schema = new_schema;
-        self.rows = new_rows;
         self.metadata.update_stats(&self.schema, &self.rows);
 
+        Ok(())
+    }
+
+    /// Evaluate a lazy column value for a specific row
+    pub fn evaluate_lazy_column(&self, column_name: &str, row: &Tuple) -> Option<Value> {
+        if let Some(expr) = self.lazy_expressions.get(column_name) {
+            use crate::query::physical::evaluate_expression;
+            Some(evaluate_expression(expr, row))
+        } else {
+            None
+        }
+    }
+
+    /// Get a row with lazy columns evaluated
+    pub fn get_row_evaluated(&self, index: usize) -> Option<Tuple> {
+        if index >= self.rows.len() {
+            return None;
+        }
+
+        let row = &self.rows[index];
+        let mut evaluated_values = row.values.clone();
+
+        // Evaluate any lazy columns
+        for (i, field) in self.schema.fields.iter().enumerate() {
+            if field.is_lazy && i < evaluated_values.len() {
+                if let Some(evaluated_val) = self.evaluate_lazy_column(&field.name, row) {
+                    evaluated_values[i] = evaluated_val;
+                }
+            }
+        }
+
+        Tuple::new(self.schema.clone(), evaluated_values).ok()
+    }
+
+    /// Materialize all lazy columns (convert to regular columns with computed values)
+    pub fn materialize_lazy_columns(&mut self) -> Result<(), String> {
+        let lazy_columns: Vec<String> = self.schema.fields
+            .iter()
+            .filter(|f| f.is_lazy)
+            .map(|f| f.name.clone())
+            .collect();
+
+        if lazy_columns.is_empty() {
+            return Ok(()); // Nothing to materialize
+        }
+
+        // Evaluate all lazy columns for all rows
+        use crate::query::physical::evaluate_expression;
+        let mut new_rows = Vec::with_capacity(self.rows.len());
+
+        for row in &self.rows {
+            let mut new_values = row.values.clone();
+            
+            // Evaluate lazy columns
+            for (i, field) in self.schema.fields.iter().enumerate() {
+                if field.is_lazy && i < new_values.len() {
+                    if let Some(expr) = self.lazy_expressions.get(&field.name) {
+                        let evaluated_val = evaluate_expression(expr, row);
+                        new_values[i] = evaluated_val;
+                    }
+                }
+            }
+
+            new_rows.push(Tuple::new(self.schema.clone(), new_values)?);
+        }
+
+        // Update schema to mark columns as non-lazy
+        let mut new_fields = self.schema.fields.clone();
+        for field in &mut new_fields {
+            if field.is_lazy {
+                field.is_lazy = false;
+            }
+        }
+        let new_schema = Arc::new(Schema::new(new_fields));
+
+        // Update dataset
+        self.rows = new_rows;
+        self.schema = new_schema;
+        
+        // Clear lazy expressions (they're now materialized)
+        for col_name in &lazy_columns {
+            self.lazy_expressions.remove(col_name);
+        }
+
+        self.metadata.update_stats(&self.schema, &self.rows);
         Ok(())
     }
 }

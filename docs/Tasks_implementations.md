@@ -85,8 +85,12 @@ This section refines and extends the roadmap starting from Phase 5.5, with the e
 - [x] Implement STACK operation for tensors
 - [x] Implement SHOW SCHEMA \<dataset\>
 - [x] Implement ADD COLUMN for datasets
-  - [x] Support computed columns (`ADD COLUMN x = a + b`) - Materialized evaluation
-  - [ ] Lazy vs materialized column evaluation (materialized implemented)
+  - [x] Support computed columns (`ADD COLUMN x = a + b`) - Materialized evaluation ✅
+  - [x] Lazy vs materialized column evaluation ✅
+    - [x] Materialized evaluation (immediate computation) ✅
+    - [x] Lazy evaluation (`ADD COLUMN x = expr LAZY`) ✅
+    - [x] Automatic lazy evaluation in queries ✅
+    - [x] MATERIALIZE command to convert lazy to materialized ✅
 - [x] Add indexing syntax in expressions
   - Tensor indexing: `m[0, *]`, `m[:, 1]`
   - Tuple access: `row.field`, `dataset.column`

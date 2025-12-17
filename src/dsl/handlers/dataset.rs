@@ -140,6 +140,7 @@ pub fn handle_select(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
             column_stats: std::collections::HashMap::new(),
         },
         indices: std::collections::HashMap::new(),
+        lazy_expressions: std::collections::HashMap::new(),
     };
 
     Ok(DslOutput::Table(ds))
@@ -928,14 +929,24 @@ fn handle_add_column(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
 
     // Check if it's a computed column (has =) or regular column (has :)
     if column_spec.contains('=') && !column_spec.contains(':') {
-        // Computed column: <col> = <expression>
+        // Computed column: <col> = <expression> [LAZY]
         let eq_idx = column_spec.find('=').ok_or_else(|| DslError::Parse {
             line: line_no,
             msg: "Invalid computed column syntax".into(),
         })?;
         
+        // Check for LAZY keyword
+        let is_lazy = column_spec.to_uppercase().contains("LAZY");
+        let expression_part = if is_lazy {
+            // Remove LAZY keyword from expression part
+            let upper = column_spec.to_uppercase();
+            let lazy_pos = upper.find("LAZY").unwrap();
+            column_spec[eq_idx + 1..lazy_pos].trim()
+        } else {
+            column_spec[eq_idx + 1..].trim()
+        };
+        
         let column_name = column_spec[..eq_idx].trim().to_string();
-        let expression_str = column_spec[eq_idx + 1..].trim();
         
         if column_name.is_empty() {
             return Err(DslError::Parse {
@@ -945,49 +956,83 @@ fn handle_add_column(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
         }
         
         // Parse the expression
-        let expr = parse_expression(expression_str, line_no)?;
+        let expr = parse_expression(expression_part, line_no)?;
         
-        // Get dataset to evaluate expression
+        // Get dataset
         let dataset = db.get_dataset(dataset_name).map_err(|e| DslError::Engine {
             line: line_no,
             source: e,
         })?;
         
-        // Evaluate expression for each row to determine type and compute values
-        use crate::query::physical::evaluate_expression;
-        let mut computed_values = Vec::new();
-        let mut inferred_type: Option<crate::core::value::ValueType> = None;
-        
-        for row in &dataset.rows {
-            let val = evaluate_expression(&expr, row);
-            if inferred_type.is_none() {
-                inferred_type = Some(val.value_type());
+        if is_lazy {
+            // For lazy columns, we only need to infer the type from one row
+            let value_type = if dataset.rows.is_empty() {
+                return Err(DslError::Parse {
+                    line: line_no,
+                    msg: "Cannot infer type from empty dataset for lazy column".into(),
+                });
+            } else {
+                use crate::query::physical::evaluate_expression;
+                let val = evaluate_expression(&expr, &dataset.rows[0]);
+                val.value_type()
+            };
+            
+            // Add lazy column (no pre-computed values needed)
+            db.alter_dataset_add_computed_column(
+                dataset_name,
+                column_name.clone(),
+                value_type,
+                vec![], // Empty for lazy columns
+                expr,
+                true, // lazy = true
+            )
+            .map_err(|e| DslError::Engine {
+                line: line_no,
+                source: e,
+            })?;
+            
+            Ok(DslOutput::Message(format!(
+                "Added lazy computed column '{}' to dataset '{}'",
+                column_name, dataset_name
+            )))
+        } else {
+            // Materialized: evaluate expression for each row
+            use crate::query::physical::evaluate_expression;
+            let mut computed_values = Vec::new();
+            let mut inferred_type: Option<crate::core::value::ValueType> = None;
+            
+            for row in &dataset.rows {
+                let val = evaluate_expression(&expr, row);
+                if inferred_type.is_none() {
+                    inferred_type = Some(val.value_type());
+                }
+                computed_values.push(val);
             }
-            computed_values.push(val);
+            
+            let value_type = inferred_type.ok_or_else(|| DslError::Parse {
+                line: line_no,
+                msg: "Cannot infer type from empty dataset".into(),
+            })?;
+            
+            // Add column with computed values
+            db.alter_dataset_add_computed_column(
+                dataset_name,
+                column_name.clone(),
+                value_type,
+                computed_values,
+                expr,
+                false, // lazy = false
+            )
+            .map_err(|e| DslError::Engine {
+                line: line_no,
+                source: e,
+            })?;
+            
+            Ok(DslOutput::Message(format!(
+                "Added computed column '{}' to dataset '{}'",
+                column_name, dataset_name
+            )))
         }
-        
-        let value_type = inferred_type.ok_or_else(|| DslError::Parse {
-            line: line_no,
-            msg: "Cannot infer type from empty dataset".into(),
-        })?;
-        
-        // Add column with computed values
-        db.alter_dataset_add_computed_column(
-            dataset_name,
-            column_name.clone(),
-            value_type,
-            computed_values,
-            expr,
-        )
-        .map_err(|e| DslError::Engine {
-            line: line_no,
-            source: e,
-        })?;
-        
-        Ok(DslOutput::Message(format!(
-            "Added computed column '{}' to dataset '{}'",
-            column_name, dataset_name
-        )))
     } else {
         // Regular column: <col>: <type> [DEFAULT <val>]
         // Parse column specification: <col>: <type> [DEFAULT <val>]
@@ -1207,6 +1252,45 @@ fn parse_term_mul_div(s: &str, line_no: usize) -> Result<Expr, DslError> {
     }
 
     parse_factor(s, line_no)
+}
+
+/// Handle MATERIALIZE command
+/// MATERIALIZE <dataset>.<column> or MATERIALIZE <dataset>
+pub fn handle_materialize(db: &mut TensorDb, line: &str, line_no: usize) -> Result<DslOutput, DslError> {
+    let rest = line.trim_start_matches("MATERIALIZE").trim();
+    
+    // Check if it's dataset.column or just dataset
+    if rest.contains('.') {
+        // MATERIALIZE dataset.column (for now, materialize all lazy columns)
+        let dot_idx = rest.find('.').unwrap();
+        let dataset_name = rest[..dot_idx].trim();
+        let _column_name = rest[dot_idx + 1..].trim();
+        
+        // For now, materialize all lazy columns (we can optimize later to materialize just one)
+        db.materialize_lazy_columns(dataset_name)
+            .map_err(|e| DslError::Engine {
+                line: line_no,
+                source: e,
+            })?;
+        
+        Ok(DslOutput::Message(format!(
+            "Materialized lazy columns in dataset '{}'",
+            dataset_name
+        )))
+    } else {
+        // MATERIALIZE dataset
+        let dataset_name = rest.trim();
+        db.materialize_lazy_columns(dataset_name)
+            .map_err(|e| DslError::Engine {
+                line: line_no,
+                source: e,
+            })?;
+        
+        Ok(DslOutput::Message(format!(
+            "Materialized lazy columns in dataset '{}'",
+            dataset_name
+        )))
+    }
 }
 
 fn parse_factor(s: &str, line_no: usize) -> Result<Expr, DslError> {

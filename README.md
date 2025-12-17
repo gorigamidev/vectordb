@@ -96,12 +96,34 @@ Full implementation of AVG aggregation with proper sum/count tracking:
 - Works with GROUP BY and computed expressions
 
 ### Computed Columns (v0.1.2)
-Add computed columns dynamically using expressions:
+Add computed columns dynamically using expressions with support for both materialized and lazy evaluation:
+
+**Materialized Columns** (evaluated immediately):
 ```sql
 -- Add computed column with expression
 DATASET products ADD COLUMN total = price * quantity
 DATASET sales ADD COLUMN profit = revenue - cost
 ```
+
+**Lazy Columns** (evaluated on access):
+```sql
+-- Lazy columns store the expression and evaluate only when accessed
+DATASET analytics ADD COLUMN total = price * quantity LAZY
+DATASET analytics ADD COLUMN complex_calc = (a + b) * c LAZY
+
+-- Query results automatically evaluate lazy columns
+SELECT total, complex_calc FROM analytics
+
+-- Materialize lazy columns to convert them to regular columns
+MATERIALIZE analytics
+```
+
+### Lazy Column Evaluation (v0.1.2)
+Lazy columns provide on-demand computation, storing expressions instead of pre-computed values:
+- **Storage Efficiency**: Only store expressions, not computed values
+- **On-Demand Evaluation**: Values computed when accessed in queries
+- **Materialization**: Convert lazy columns to materialized with `MATERIALIZE` command
+- **Automatic Evaluation**: Query execution automatically evaluates lazy columns
 
 ### Schema Introspection
 ```sql

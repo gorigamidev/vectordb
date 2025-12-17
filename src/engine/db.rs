@@ -349,10 +349,18 @@ impl TensorDb {
         value_type: crate::core::value::ValueType,
         computed_values: Vec<crate::core::value::Value>,
         expression: crate::query::logical::Expr,
+        lazy: bool,
     ) -> Result<(), EngineError> {
         let dataset = self.get_dataset_mut(dataset_name)?;
         dataset
-            .add_computed_column(column_name, value_type, computed_values, expression)
+            .add_computed_column(column_name, value_type, computed_values, expression, lazy)
+            .map_err(|e| EngineError::InvalidOp(e))
+    }
+
+    /// Materialize lazy columns in a dataset
+    pub fn materialize_lazy_columns(&mut self, dataset_name: &str) -> Result<(), EngineError> {
+        let dataset = self.get_dataset_mut(dataset_name)?;
+        dataset.materialize_lazy_columns()
             .map_err(|e| EngineError::InvalidOp(e))
     }
 

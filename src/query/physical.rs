@@ -3,6 +3,23 @@ use crate::engine::EngineError;
 use crate::engine::TensorDb;
 use std::sync::Arc;
 
+/// Helper function to evaluate lazy columns in a row
+fn evaluate_lazy_columns_in_row(dataset: &crate::core::dataset::Dataset, row: &Tuple) -> Result<Tuple, EngineError> {
+    let mut evaluated_values = row.values.clone();
+    
+    // Evaluate any lazy columns
+    for (i, field) in dataset.schema.fields.iter().enumerate() {
+        if field.is_lazy && i < evaluated_values.len() {
+            if let Some(evaluated_val) = dataset.evaluate_lazy_column(&field.name, row) {
+                evaluated_values[i] = evaluated_val;
+            }
+        }
+    }
+    
+    Tuple::new(dataset.schema.clone(), evaluated_values)
+        .map_err(|e| EngineError::InvalidOp(e))
+}
+
 /// Trait for physical execution plan nodes
 pub trait PhysicalPlan: Send + Sync + std::fmt::Debug {
     /// Get the schema of the output
@@ -26,8 +43,12 @@ impl PhysicalPlan for SeqScanExec {
 
     fn execute(&self, db: &TensorDb) -> Result<Vec<Tuple>, EngineError> {
         let dataset = db.get_dataset(&self.dataset_name)?;
-        // Clone all rows (Seq Scan)
-        Ok(dataset.rows.clone())
+        // Clone all rows and evaluate lazy columns
+        let mut rows = Vec::with_capacity(dataset.rows.len());
+        for row in &dataset.rows {
+            rows.push(evaluate_lazy_columns_in_row(&dataset, row)?);
+        }
+        Ok(rows)
     }
 }
 
@@ -87,7 +108,11 @@ impl PhysicalPlan for IndexScanExec {
             .lookup(&self.value)
             .map_err(|e| EngineError::InvalidOp(e))?;
 
-        Ok(dataset.get_rows_by_ids(&row_ids))
+        let mut evaluated_rows = Vec::new();
+        for row in dataset.get_rows_by_ids(&row_ids) {
+            evaluated_rows.push(evaluate_lazy_columns_in_row(&dataset, &row)?);
+        }
+        Ok(evaluated_rows)
     }
 }
 
@@ -127,7 +152,11 @@ impl PhysicalPlan for VectorSearchExec {
             .map_err(|e| EngineError::InvalidOp(e))?;
         let row_ids: Vec<usize> = results.iter().map(|(id, _)| *id).collect();
 
-        Ok(dataset.get_rows_by_ids(&row_ids))
+        let mut evaluated_rows = Vec::new();
+        for row in dataset.get_rows_by_ids(&row_ids) {
+            evaluated_rows.push(evaluate_lazy_columns_in_row(&dataset, &row)?);
+        }
+        Ok(evaluated_rows)
     }
 }
 
