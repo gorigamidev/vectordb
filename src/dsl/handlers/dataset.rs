@@ -909,6 +909,8 @@ fn parse_tuple_values(
 }
 
 /// Handle DATASET <name> ADD COLUMN <col>: <type> [DEFAULT <val>]
+/// or
+/// Handle DATASET <name> ADD COLUMN <col> = <expression> (computed column)
 fn handle_add_column(db: &mut TensorDb, line: &str, line_no: usize) -> Result<DslOutput, DslError> {
     let rest = line.trim_start_matches("DATASET").trim();
 
@@ -917,80 +919,145 @@ fn handle_add_column(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
     if parts.len() != 2 {
         return Err(DslError::Parse {
             line: line_no,
-            msg: "Expected: DATASET <name> ADD COLUMN <col>: <type> [DEFAULT <val>]".into(),
+            msg: "Expected: DATASET <name> ADD COLUMN <col>: <type> [DEFAULT <val>] or DATASET <name> ADD COLUMN <col> = <expression>".into(),
         });
     }
 
     let dataset_name = parts[0].trim();
     let column_spec = parts[1].trim();
 
-    // Parse column specification: <col>: <type> [DEFAULT <val>]
-    // Split by DEFAULT first
-    let (col_type_part, default_val) = if let Some(idx) = column_spec.find(" DEFAULT ") {
-        let col_type = &column_spec[..idx];
-        let default_str = &column_spec[idx + 9..].trim();
-        (col_type, Some(parse_single_value(default_str, line_no)?))
-    } else {
-        (column_spec, None)
-    };
-
-    // Parse <col>: <type>
-    let col_parts: Vec<&str> = col_type_part.splitn(2, ':').collect();
-    if col_parts.len() != 2 {
-        return Err(DslError::Parse {
+    // Check if it's a computed column (has =) or regular column (has :)
+    if column_spec.contains('=') && !column_spec.contains(':') {
+        // Computed column: <col> = <expression>
+        let eq_idx = column_spec.find('=').ok_or_else(|| DslError::Parse {
             line: line_no,
-            msg: "Expected column definition: <name>: <type>".into(),
-        });
-    }
-
-    let column_name = col_parts[0].trim().to_string();
-    let type_str = col_parts[1].trim();
-
-    // Check if nullable (ends with ?)
-    let (type_str_clean, nullable) = if type_str.ends_with('?') {
-        (&type_str[..type_str.len() - 1], true)
-    } else {
-        (type_str, false)
-    };
-
-    // Parse type
-    let value_type = parse_value_type(type_str_clean, line_no)?;
-
-    // Determine default value
-    let default_value = default_val.unwrap_or_else(|| {
-        if nullable {
-            Value::Null
-        } else {
-            // Use type-appropriate default
-            match value_type {
-                ValueType::Int => Value::Int(0),
-                ValueType::Float => Value::Float(0.0),
-                ValueType::String => Value::String(String::new()),
-                ValueType::Bool => Value::Bool(false),
-                ValueType::Vector(dim) => Value::Vector(vec![0.0; dim]),
-                ValueType::Matrix(r, c) => Value::Matrix(vec![vec![0.0; c]; r]),
-                ValueType::Null => Value::Null,
-            }
+            msg: "Invalid computed column syntax".into(),
+        })?;
+        
+        let column_name = column_spec[..eq_idx].trim().to_string();
+        let expression_str = column_spec[eq_idx + 1..].trim();
+        
+        if column_name.is_empty() {
+            return Err(DslError::Parse {
+                line: line_no,
+                msg: "Column name cannot be empty".into(),
+            });
         }
-    });
+        
+        // Parse the expression
+        let expr = parse_expression(expression_str, line_no)?;
+        
+        // Get dataset to evaluate expression
+        let dataset = db.get_dataset(dataset_name).map_err(|e| DslError::Engine {
+            line: line_no,
+            source: e,
+        })?;
+        
+        // Evaluate expression for each row to determine type and compute values
+        use crate::query::physical::evaluate_expression;
+        let mut computed_values = Vec::new();
+        let mut inferred_type: Option<crate::core::value::ValueType> = None;
+        
+        for row in &dataset.rows {
+            let val = evaluate_expression(&expr, row);
+            if inferred_type.is_none() {
+                inferred_type = Some(val.value_type());
+            }
+            computed_values.push(val);
+        }
+        
+        let value_type = inferred_type.ok_or_else(|| DslError::Parse {
+            line: line_no,
+            msg: "Cannot infer type from empty dataset".into(),
+        })?;
+        
+        // Add column with computed values
+        db.alter_dataset_add_computed_column(
+            dataset_name,
+            column_name.clone(),
+            value_type,
+            computed_values,
+            expr,
+        )
+        .map_err(|e| DslError::Engine {
+            line: line_no,
+            source: e,
+        })?;
+        
+        Ok(DslOutput::Message(format!(
+            "Added computed column '{}' to dataset '{}'",
+            column_name, dataset_name
+        )))
+    } else {
+        // Regular column: <col>: <type> [DEFAULT <val>]
+        // Parse column specification: <col>: <type> [DEFAULT <val>]
+        // Split by DEFAULT first
+        let (col_type_part, default_val) = if let Some(idx) = column_spec.find(" DEFAULT ") {
+            let col_type = &column_spec[..idx];
+            let default_str = &column_spec[idx + 9..].trim();
+            (col_type, Some(parse_single_value(default_str, line_no)?))
+        } else {
+            (column_spec, None)
+        };
 
-    // Execute the alteration
-    db.alter_dataset_add_column(
-        dataset_name,
-        column_name.clone(),
-        value_type,
-        default_value,
-        nullable,
-    )
-    .map_err(|e| DslError::Engine {
-        line: line_no,
-        source: e,
-    })?;
+        // Parse <col>: <type>
+        let col_parts: Vec<&str> = col_type_part.splitn(2, ':').collect();
+        if col_parts.len() != 2 {
+            return Err(DslError::Parse {
+                line: line_no,
+                msg: "Expected column definition: <name>: <type>".into(),
+            });
+        }
 
-    Ok(DslOutput::Message(format!(
-        "Added column '{}' to dataset '{}'",
-        column_name, dataset_name
-    )))
+        let column_name = col_parts[0].trim().to_string();
+        let type_str = col_parts[1].trim();
+
+        // Check if nullable (ends with ?)
+        let (type_str_clean, nullable) = if type_str.ends_with('?') {
+            (&type_str[..type_str.len() - 1], true)
+        } else {
+            (type_str, false)
+        };
+
+        // Parse type
+        let value_type = parse_value_type(type_str_clean, line_no)?;
+
+        // Determine default value
+        let default_value = default_val.unwrap_or_else(|| {
+            if nullable {
+                Value::Null
+            } else {
+                // Use type-appropriate default
+                match value_type {
+                    ValueType::Int => Value::Int(0),
+                    ValueType::Float => Value::Float(0.0),
+                    ValueType::String => Value::String(String::new()),
+                    ValueType::Bool => Value::Bool(false),
+                    ValueType::Vector(dim) => Value::Vector(vec![0.0; dim]),
+                    ValueType::Matrix(r, c) => Value::Matrix(vec![vec![0.0; c]; r]),
+                    ValueType::Null => Value::Null,
+                }
+            }
+        });
+
+        // Execute the alteration
+        db.alter_dataset_add_column(
+            dataset_name,
+            column_name.clone(),
+            value_type,
+            default_value,
+            nullable,
+        )
+        .map_err(|e| DslError::Engine {
+            line: line_no,
+            source: e,
+        })?;
+
+        Ok(DslOutput::Message(format!(
+            "Added column '{}' to dataset '{}'",
+            column_name, dataset_name
+        )))
+    }
 }
 
 fn parse_select_items(s: &str, line_no: usize) -> Result<Vec<Expr>, DslError> {

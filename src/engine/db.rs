@@ -341,6 +341,21 @@ impl TensorDb {
             .map_err(|e| EngineError::InvalidOp(e))
     }
 
+    /// Add a computed column to an existing dataset
+    pub fn alter_dataset_add_computed_column(
+        &mut self,
+        dataset_name: &str,
+        column_name: String,
+        value_type: crate::core::value::ValueType,
+        computed_values: Vec<crate::core::value::Value>,
+        expression: crate::query::logical::Expr,
+    ) -> Result<(), EngineError> {
+        let dataset = self.get_dataset_mut(dataset_name)?;
+        dataset
+            .add_computed_column(column_name, value_type, computed_values, expression)
+            .map_err(|e| EngineError::InvalidOp(e))
+    }
+
     /// Index into a tensor: output = tensor[indices]
     pub fn eval_index(
         &mut self,

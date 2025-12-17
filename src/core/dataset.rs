@@ -424,6 +424,66 @@ impl Dataset {
 
         Ok(())
     }
+
+    /// Add a computed column to the dataset
+    /// This evaluates an expression for each row and adds the result as a new column
+    pub fn add_computed_column(
+        &mut self,
+        column_name: String,
+        value_type: ValueType,
+        computed_values: Vec<Value>,
+        _expression: crate::query::logical::Expr, // Store for future lazy evaluation
+    ) -> Result<(), String> {
+        // Validate that column doesn't already exist
+        if self.schema.get_field(column_name.as_str()).is_some() {
+            return Err(format!("Column '{}' already exists", column_name));
+        }
+
+        // Validate that computed values match the number of rows
+        if computed_values.len() != self.rows.len() {
+            return Err(format!(
+                "Computed values count ({}) doesn't match row count ({})",
+                computed_values.len(),
+                self.rows.len()
+            ));
+        }
+
+        // Validate that all computed values match the type
+        for (i, val) in computed_values.iter().enumerate() {
+            if !val.matches_type(&value_type) {
+                return Err(format!(
+                    "Computed value at row {} type mismatch: expected {:?}, got {:?}",
+                    i,
+                    value_type,
+                    val.value_type()
+                ));
+            }
+        }
+
+        // Create new schema with the additional field
+        let mut new_fields = self.schema.fields.clone();
+        new_fields.push(super::tuple::Field {
+            name: column_name.clone(),
+            value_type,
+            nullable: false, // Computed columns are not nullable
+        });
+        let new_schema = Arc::new(Schema::new(new_fields));
+
+        // Update all existing rows to include the computed column
+        let mut new_rows = Vec::with_capacity(self.rows.len());
+        for (row, computed_val) in self.rows.iter().zip(computed_values.iter()) {
+            let mut new_values = row.values.clone();
+            new_values.push(computed_val.clone());
+            new_rows.push(Tuple::new(new_schema.clone(), new_values)?);
+        }
+
+        // Update dataset
+        self.schema = new_schema;
+        self.rows = new_rows;
+        self.metadata.update_stats(&self.schema, &self.rows);
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

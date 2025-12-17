@@ -3,13 +3,13 @@
 ## Phase 0: Preparation
 
 - [x] Fix Cargo.toml edition (2024 → 2021)
-- [ ] Add ADD COLUMN for computed fields
-- [ ] Add GROUP BY with COMPUTE aggregations
+- [x] Add ADD COLUMN for datasets (with DEFAULT values and nullable support)
+- [x] Add GROUP BY with aggregations (SUM, AVG, COUNT, MIN, MAX)
 - [x] Add matrix operations (MATMUL, TRANSPOSE, RESHAPE, FLATTEN)
-- [ ] Add indexing syntax (m[0, *], tuple.field)
-- [ ] Update SHOW command for all types
+- [x] Add indexing syntax (m[0, *], tuple.field, dataset.column)
+- [x] Update SHOW command for all types (tensors, datasets, schemas, indexes)
 - [x] Add SHOW SHAPE introspection
-- [ ] Add SHOW SCHEMA introspection
+- [x] Add SHOW SCHEMA introspection
 
 ## Phase 1: Dataset Store ✅
 
@@ -85,8 +85,8 @@ This section refines and extends the roadmap starting from Phase 5.5, with the e
 - [x] Implement STACK operation for tensors
 - [x] Implement SHOW SCHEMA \<dataset\>
 - [x] Implement ADD COLUMN for datasets
-  - Support computed columns (`ADD COLUMN x = a + b`)
-  - Lazy vs materialized column evaluation
+  - [x] Support computed columns (`ADD COLUMN x = a + b`) - Materialized evaluation
+  - [ ] Lazy vs materialized column evaluation (materialized implemented)
 - [x] Add indexing syntax in expressions
   - Tensor indexing: `m[0, *]`, `m[:, 1]`
   - Tuple access: `row.field`, `dataset.column`
@@ -136,10 +136,10 @@ This section refines and extends the roadmap starting from Phase 5.5, with the e
 
 - [x] Implement GROUP BY execution
 - [x] Aggregation functions:
-  - SUM
-  - AVG
-  - COUNT
-  - MIN / MAX
+  - SUM ✅
+  - AVG ✅ (fully implemented with sum/count tracking)
+  - COUNT ✅
+  - MIN / MAX ✅
 - [X] Aggregations over:
   - Scalars
   - Vectors (element-wise)

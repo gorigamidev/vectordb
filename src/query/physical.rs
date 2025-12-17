@@ -234,6 +234,12 @@ impl PhysicalPlan for AggregateExec {
     fn execute(&self, db: &TensorDb) -> Result<Vec<Tuple>, EngineError> {
         let rows = self.input.execute(db)?;
 
+        // If no rows and no group by, return empty result set
+        // (Aggregations on empty sets typically return no rows, not NULL rows)
+        if rows.is_empty() {
+            return Ok(vec![]);
+        }
+
         // If no group by, global aggregation (1 group)
         // If group by, hash aggregation
 
@@ -243,12 +249,13 @@ impl PhysicalPlan for AggregateExec {
         // Map GroupKey -> Accumulators
         // GroupKey is Vec<Value>
         type GroupKey = Vec<Value>;
-        type Accumulators = Vec<Value>; // Simplification: Accumulator state is just Value for now (SUM, COUNT)
-
-        let mut groups: HashMap<GroupKey, Accumulators> = HashMap::new();
-        // We also need to track counts for AVG if we want to be correct, but let's stick to simple first.
-        // Actually, let's make Accumulator more robust?
-        // For MVP: Value is enough if we handle types carefully.
+        type Accumulators = Vec<Value>; // Accumulator state for SUM, COUNT, MIN, MAX
+        
+        // Separate tracking for AVG: (sum, count) pairs for each AVG aggregate
+        // Indexed by position in aggr_expr
+        type AvgAccumulators = Vec<(Value, usize)>; // (sum, count) for AVG
+        
+        let mut groups: HashMap<GroupKey, (Accumulators, AvgAccumulators)> = HashMap::new();
 
         // 1. Initialize groups
         // Iterate rows
@@ -260,20 +267,51 @@ impl PhysicalPlan for AggregateExec {
                 .map(|expr| evaluate_expression(expr, &row))
                 .collect();
 
-            let accs = groups.entry(key).or_insert_with(|| {
+            let (accs, avg_accs) = groups.entry(key).or_insert_with(|| {
                 // Init accumulators
-                self.aggr_expr
-                    .iter()
-                    .map(|expr| match expr {
+                let mut regular_accs = Vec::new();
+                let mut avg_accumulators = Vec::new();
+                
+                for expr in &self.aggr_expr {
+                    match expr {
                         crate::query::logical::Expr::AggregateExpr { func, expr: inner } => {
                             match func {
-                                crate::query::logical::AggregateFunction::Count => Value::Int(0),
+                                crate::query::logical::AggregateFunction::Count => {
+                                    regular_accs.push(Value::Int(0));
+                                    avg_accumulators.push((Value::Null, 0)); // Placeholder
+                                }
                                 crate::query::logical::AggregateFunction::Sum => {
                                     let val = evaluate_expression(inner, &row);
                                     if let Value::Vector(v) = val {
-                                        Value::Vector(vec![0.0; v.len()])
+                                        regular_accs.push(Value::Vector(vec![0.0; v.len()]));
                                     } else if let Value::Matrix(m) = val {
                                         // Zero matrix
+                                        if m.is_empty() {
+                                            regular_accs.push(Value::Matrix(vec![]));
+                                        } else {
+                                            let r = m.len();
+                                            let c = m[0].len();
+                                            regular_accs.push(Value::Matrix(vec![vec![0.0; c]; r]));
+                                        }
+                                    } else {
+                                        regular_accs.push(Value::Int(0));
+                                    }
+                                    avg_accumulators.push((Value::Null, 0)); // Placeholder
+                                }
+                                crate::query::logical::AggregateFunction::Min => {
+                                    regular_accs.push(Value::Null);
+                                    avg_accumulators.push((Value::Null, 0)); // Placeholder
+                                }
+                                crate::query::logical::AggregateFunction::Max => {
+                                    regular_accs.push(Value::Null);
+                                    avg_accumulators.push((Value::Null, 0)); // Placeholder
+                                }
+                                crate::query::logical::AggregateFunction::Avg => {
+                                    // For AVG, initialize sum based on first value type
+                                    let val = evaluate_expression(inner, &row);
+                                    let initial_sum = if let Value::Vector(v) = val {
+                                        Value::Vector(vec![0.0; v.len()])
+                                    } else if let Value::Matrix(m) = val {
                                         if m.is_empty() {
                                             Value::Matrix(vec![])
                                         } else {
@@ -282,17 +320,21 @@ impl PhysicalPlan for AggregateExec {
                                             Value::Matrix(vec![vec![0.0; c]; r])
                                         }
                                     } else {
-                                        Value::Int(0)
-                                    }
+                                        Value::Float(0.0)
+                                    };
+                                    avg_accumulators.push((initial_sum, 0));
+                                    regular_accs.push(Value::Null); // Placeholder, will be replaced with computed avg
                                 }
-                                crate::query::logical::AggregateFunction::Min => Value::Null,
-                                crate::query::logical::AggregateFunction::Max => Value::Null,
-                                crate::query::logical::AggregateFunction::Avg => Value::Float(0.0),
                             }
                         }
-                        _ => Value::Null,
-                    })
-                    .collect()
+                        _ => {
+                            regular_accs.push(Value::Null);
+                            avg_accumulators.push((Value::Null, 0));
+                        }
+                    }
+                }
+                
+                (regular_accs, avg_accumulators)
             });
 
             // Update accumulators
@@ -341,6 +383,62 @@ impl PhysicalPlan for AggregateExec {
                                     }
                                 }
                                 _ => {}
+                            }
+                        }
+                        crate::query::logical::AggregateFunction::Avg => {
+                            // Track sum and count for AVG
+                            let (sum_ref, count_ref) = &mut avg_accs[i];
+                            *count_ref += 1;
+                            
+                            // Add to sum - need to handle type conversions
+                            match sum_ref {
+                                Value::Float(ref mut sum) => {
+                                    match &val {
+                                        Value::Int(v) => *sum += *v as f32,
+                                        Value::Float(v) => *sum += v,
+                                        _ => {}
+                                    }
+                                }
+                                Value::Int(ref mut sum) => {
+                                    match &val {
+                                        Value::Int(v) => {
+                                            // Convert to Float for precision
+                                            *sum_ref = Value::Float(*sum as f32 + *v as f32);
+                                        }
+                                        Value::Float(v) => {
+                                            *sum_ref = Value::Float(*sum as f32 + v);
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                Value::Vector(ref mut sum_vec) => {
+                                    if let Value::Vector(v) = &val {
+                                        if sum_vec.len() == v.len() {
+                                            for (s, val) in sum_vec.iter_mut().zip(v.iter()) {
+                                                *s += val;
+                                            }
+                                        }
+                                    }
+                                }
+                                Value::Matrix(ref mut sum_mat) => {
+                                    if let Value::Matrix(v) = &val {
+                                        // Element-wise sum
+                                        if sum_mat.len() == v.len()
+                                            && !sum_mat.is_empty()
+                                            && sum_mat[0].len() == v[0].len()
+                                        {
+                                            for i in 0..sum_mat.len() {
+                                                for j in 0..sum_mat[i].len() {
+                                                    sum_mat[i][j] += v[i][j];
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    // Initialize with first value
+                                    *sum_ref = val.clone();
+                                }
                             }
                         }
                         crate::query::logical::AggregateFunction::Max => {
@@ -394,17 +492,56 @@ impl PhysicalPlan for AggregateExec {
                                 _ => {}
                             }
                         }
-                        _ => {} // Avg etc not fully impl yet
                     }
                 }
             }
         }
 
-        // Output rows
+        // Output rows - compute AVG from sum/count before outputting
         let mut output_rows = Vec::new();
-        for (key, accs) in groups {
+        for (key, (accs, avg_accs)) in groups {
             let mut values = key; // Group keys first
-            values.extend(accs); // Then aggregates
+            
+            // Build final accumulator values, computing AVG where needed
+            let mut final_accs = Vec::new();
+            for (i, expr) in self.aggr_expr.iter().enumerate() {
+                if let crate::query::logical::Expr::AggregateExpr { func, .. } = expr {
+                    if matches!(func, crate::query::logical::AggregateFunction::Avg) {
+                        // Compute average: sum / count
+                        let (sum, count) = &avg_accs[i];
+                        if *count > 0 {
+                            let avg = match sum {
+                                Value::Float(s) => Value::Float(*s / *count as f32),
+                                Value::Int(s) => Value::Float(*s as f32 / *count as f32),
+                                Value::Vector(v) => {
+                                    Value::Vector(v.iter().map(|x| x / *count as f32).collect())
+                                }
+                                Value::Matrix(m) => {
+                                    Value::Matrix(
+                                        m.iter()
+                                            .map(|row| {
+                                                row.iter()
+                                                    .map(|x| x / *count as f32)
+                                                    .collect()
+                                            })
+                                            .collect()
+                                    )
+                                }
+                                _ => Value::Null,
+                            };
+                            final_accs.push(avg);
+                        } else {
+                            final_accs.push(Value::Null);
+                        }
+                    } else {
+                        final_accs.push(accs[i].clone());
+                    }
+                } else {
+                    final_accs.push(accs[i].clone());
+                }
+            }
+            
+            values.extend(final_accs); // Then aggregates
             output_rows.push(
                 Tuple::new(self.schema.clone(), values).map_err(|e| EngineError::InvalidOp(e))?,
             );
@@ -414,7 +551,7 @@ impl PhysicalPlan for AggregateExec {
     }
 }
 
-fn evaluate_expression(
+pub fn evaluate_expression(
     expr: &crate::query::logical::Expr,
     row: &crate::core::tuple::Tuple,
 ) -> crate::core::value::Value {
