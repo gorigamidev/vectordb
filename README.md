@@ -125,8 +125,6 @@ curl -X POST "http://localhost:8080/execute?format=json" \
 - **TOON** (default): Token-Oriented Object Notation - human and machine readable
 - **JSON** (opt-in): Standard JSON format via `?format=json` query parameter
 
-*Legacy Support:* JSON request wrapper still supported with deprecation warnings
-
 ---
 
 ## Recent Features
@@ -203,6 +201,30 @@ SHOW ALL DATASETS
 -- View all indexes
 SHOW INDEXES analytics
 ```
+
+### Persistence Layer (v0.1.2)
+Native disk-backed persistence for datasets and tensors support functionality:
+
+**Dataset Persistence** (Parquet Format):
+```sql
+-- Save a dataset to disk (Parquet + Metadata)
+SAVE DATASET users TO "./data"
+
+-- List saved datasets in a directory
+LIST DATASETS FROM "./data"
+```
+
+**Tensor Persistence** (JSON Format):
+```sql
+-- List saved tensors (Save/Load commands coming soon)
+LIST TENSORS FROM "./data"
+```
+
+**Features:**
+- **Datasets**: Stored as Apache Parquet files for efficiency and interoperability
+- **Metadata**: JSON-based metadata tracking for datasets
+- **Tensors**: JSON-based storage for tensors (Weights/embeddings)
+- **Directory Structure**: Automatically manages distinct `datasets/` and `tensors/` subdirectories
 
 ---
 

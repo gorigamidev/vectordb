@@ -141,6 +141,12 @@ pub fn execute_line(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Dsl
                 msg: format!("Unsupported CREATE command: {}", line),
             })
         }
+    } else if line.starts_with("SAVE ") {
+        handlers::persistence::handle_save(db, line, line_no)
+    } else if line.starts_with("LOAD ") {
+        handlers::persistence::handle_load(db, line, line_no)
+    } else if line.starts_with("LIST DATASETS") || line.starts_with("LIST TENSORS") {
+        handlers::persistence::handle_list_datasets(db, line, line_no)
     } else {
         // Comment or empty? handled in script, but for single line exec check too
         if line.is_empty() || line.starts_with('#') || line.starts_with("//") {

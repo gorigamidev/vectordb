@@ -3,6 +3,7 @@ pub mod explain;
 pub mod index;
 pub mod introspection;
 pub mod operations;
+pub mod persistence;
 pub mod search;
 pub mod tensor;
 
