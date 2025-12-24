@@ -7,6 +7,7 @@
 ## Key Capabilities
 
 ### 1. Hybrid Data Model
+
 Store structured data (Integers, Strings) alongside mathematical types (Vectors, Matrices) in the same dataset.
 
 ```rust
@@ -19,6 +20,7 @@ DATASET analytics COLUMNS (
 ```
 
 ### 2. Analytical DSL
+
 Perform complex selection, filtering, and aggregation on all data types.
 
 ```sql
@@ -37,6 +39,7 @@ SHOW SCHEMA analytics
 ```
 
 ### 3. Matrix & Vector Aggregations
+
 VectorDB supports element-wise aggregations on complex types with full SQL-like aggregation functions.
 
 ```sql
@@ -68,6 +71,7 @@ GROUP BY region
 ```
 
 ### 4. Vector Similarity Search
+
 Built-in support for vector indexing and similarity search (KNN).
 
 ```sql
@@ -80,9 +84,27 @@ WHERE embedding ~= [0.1, 0.2, ... 128 values ...]
 LIMIT 5
 ```
 
-### 5. Multi-Paradigm Access
+### 5. Multi-Database Engine
+
+Manage multiple isolated database instances within a single cluster.
+
+```sql
+-- Create and switch context
+CREATE DATABASE analytics
+USE analytics
+
+-- List all databases
+SHOW DATABASES
+
+-- Data isolation: users in 'default' != users in 'analytics'
+USE default
+SHOW ALL DATASETS
+```
+
+### 6. Multi-Paradigm Access
 
 **REPL (Interactive Shell)**
+
 ```bash
 # Default: Human-readable output
 cargo run -- repl
@@ -92,6 +114,7 @@ cargo run -- repl --format=toon
 ```
 
 **Script Execution**
+
 ```bash
 # Run .vdb script files
 cargo run -- run examples/features_demo.vdb
@@ -101,6 +124,7 @@ cargo run -- run script.vdb --format=toon
 ```
 
 **HTTP Server**
+
 ```bash
 # Start server on port 8080
 cargo run -- server --port 8080
@@ -109,6 +133,7 @@ cargo run -- server --port 8080
 **Server API** - Unified interface with DSL commands and flexible output:
 
 *Input:* Raw DSL commands (text/plain)
+
 ```bash
 # TOON response (default)
 curl -X POST "http://localhost:8080/execute" \
@@ -122,6 +147,7 @@ curl -X POST "http://localhost:8080/execute?format=json" \
 ```
 
 *Response Formats:*
+
 - **TOON** (default): Token-Oriented Object Notation - human and machine readable
 - **JSON** (opt-in): Standard JSON format via `?format=json` query parameter
 
@@ -130,20 +156,24 @@ curl -X POST "http://localhost:8080/execute?format=json" \
 ## Recent Features
 
 ### Interface Standardization (v0.1.2)
+
 Unified interface across all access methods with flexible output formats:
 
 **Server API Improvements:**
+
 - Raw DSL commands as input (no JSON wrapper needed)
 - TOON format as default output
 - JSON format available via `?format=json` query parameter
 - Backward compatible with legacy JSON request format
 
 **CLI Enhancements:**
+
 - `--format` flag for REPL and script execution
 - Choose between `display` (human-readable) or `toon` (machine-readable) output
 - Perfect for automation and scripting workflows
 
 **Example:**
+
 ```bash
 # CLI with TOON output
 cargo run -- repl --format=toon
@@ -155,15 +185,19 @@ curl -X POST "http://localhost:8080/execute?format=json" \
 ```
 
 ### AVG Aggregation (v0.1.2)
+
 Full implementation of AVG aggregation with proper sum/count tracking:
+
 - Supports Int, Float, Vector, and Matrix types
 - Automatic type conversion (Int → Float for precision)
 - Works with GROUP BY and computed expressions
 
 ### Computed Columns (v0.1.2)
+
 Add computed columns dynamically using expressions with support for both materialized and lazy evaluation:
 
 **Materialized Columns** (evaluated immediately):
+
 ```sql
 -- Add computed column with expression
 DATASET products ADD COLUMN total = price * quantity
@@ -171,6 +205,7 @@ DATASET sales ADD COLUMN profit = revenue - cost
 ```
 
 **Lazy Columns** (evaluated on access):
+
 ```sql
 -- Lazy columns store the expression and evaluate only when accessed
 DATASET analytics ADD COLUMN total = price * quantity LAZY
@@ -184,13 +219,16 @@ MATERIALIZE analytics
 ```
 
 ### Lazy Column Evaluation (v0.1.2)
+
 Lazy columns provide on-demand computation, storing expressions instead of pre-computed values:
+
 - **Storage Efficiency**: Only store expressions, not computed values
 - **On-Demand Evaluation**: Values computed when accessed in queries
 - **Materialization**: Convert lazy columns to materialized with `MATERIALIZE` command
 - **Automatic Evaluation**: Query execution automatically evaluates lazy columns
 
 ### Schema Introspection
+
 ```sql
 -- View dataset schema
 SHOW SCHEMA analytics
@@ -202,35 +240,57 @@ SHOW ALL DATASETS
 SHOW INDEXES analytics
 ```
 
-### Persistence Layer (v0.1.2)
-Native disk-backed persistence for datasets and tensors support functionality:
+### Persistence & Lifecycle (v0.1.3)
 
-**Dataset Persistence** (Parquet Format):
+Native disk-backed persistence with automated database discovery and configuration.
+
+**Database Management:**
+
 ```sql
--- Save a dataset to disk (Parquet + Metadata)
-SAVE DATASET users TO "./data"
-
--- List saved datasets in a directory
-LIST DATASETS FROM "./data"
+CREATE DATABASE research
+USE research
+DROP DATABASE obsolete_db
+SHOW DATABASES
 ```
 
-**Tensor Persistence** (JSON Format):
+**Dataset & Tensor Persistence:**
+
 ```sql
--- List saved tensors (Save/Load commands coming soon)
-LIST TENSORS FROM "./data"
+-- Save data (defaults to database-specific path in linal.toml)
+SAVE DATASET users
+SAVE TENSOR weights
+
+-- Load data back
+LOAD DATASET users
+LOAD TENSOR weights
+
+-- List what's on disk
+LIST DATASETS
+LIST TENSORS
 ```
 
-**Features:**
-- **Datasets**: Stored as Apache Parquet files for efficiency and interoperability
-- **Metadata**: JSON-based metadata tracking for datasets
-- **Tensors**: JSON-based storage for tensors (Weights/embeddings)
-- **Directory Structure**: Automatically manages distinct `datasets/` and `tensors/` subdirectories
+**Configuration (`linal.toml`):**
+Customize the engine behavior and storage locations.
+
+```toml
+[storage]
+data_dir = "./data"
+default_db = "default"
+```
+
+**Key Features:**
+
+- **Auto-Discovery**: Engine automatically discovers and recovers databases from `data_dir` on startup.
+- **Database Isolation**: Persistence is siloed per database (e.g., `./data/analytics/` vs `./data/default/`).
+- **Standard Formats**: Datasets use **Apache Parquet** for efficiency; Tensors use JSON for weights and metadata.
+- **Seamless Recovery**: Databases created in one session are immediately available in the next.
 
 ---
 
 ## Quick Start
 
 ### Installation
+
 ```bash
 git clone https://github.com/yourusername/vector-db-rs.git
 cd vector-db-rs
@@ -238,13 +298,16 @@ cargo build --release
 ```
 
 ### Running the Example
+
 We have a comprehensive feature demo script included.
+
 ```bash
 # Run the features demo
 cargo run -- run examples/features_demo.vdb
 ```
 
 ### Interactive REPL
+
 ```bash
 $ cargo run
 > DEFINE v = [1, 2, 3]
@@ -256,17 +319,17 @@ $ cargo run
 
 ## Architecture
 
-*   **Storage Engine**: In-memory columnar/row hybrid store with specialized indices (HashIndex, VectorIndex).
-*   **Query Engine**: Logical -> Physical plan optimization with predicate pushdown and index-aware execution.
-*   **Type System**: Strong typing with inference for arithmetic expressions (`Matrix + Float = Matrix`).
-*   **Aggregation Engine**: Full SQL aggregation support (SUM, AVG, COUNT, MIN, MAX) with element-wise operations on vectors and matrices.
-*   **Schema Evolution**: Dynamic column addition with computed columns support (`ADD COLUMN x = expression`).
+- **Storage Engine**: In-memory columnar/row hybrid store with specialized indices (HashIndex, VectorIndex).
+- **Query Engine**: Logical -> Physical plan optimization with predicate pushdown and index-aware execution.
+- **Type System**: Strong typing with inference for arithmetic expressions (`Matrix + Float = Matrix`).
+- **Aggregation Engine**: Full SQL aggregation support (SUM, AVG, COUNT, MIN, MAX) with element-wise operations on vectors and matrices.
+- **Schema Evolution**: Dynamic column addition with computed columns support (`ADD COLUMN x = expression`).
 
 ## Documentation
 
-*   [DSL Reference](docs/DSL_REFERENCE.md)
-*   [Roadmap & Status](docs/ROADMAP.md)
-*   [TOON Format](TOON_FORMAT.md)
+- [DSL Reference](docs/DSL_REFERENCE.md)
+- [Roadmap & Status](docs/ROADMAP.md)
+- [TOON Format](TOON_FORMAT.md)
 
 ---
 
