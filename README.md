@@ -179,6 +179,30 @@ curl -X POST "http://localhost:8080/execute?format=json" \
 
 ## Recent Features
 
+### CLI & Server Hardening (v0.1.4 - LINAL)
+
+Significant improvements to the user experience and engine robustness:
+
+**Professional REPL (LINAL Shell):**
+
+- Integrated `rustyline` for persistent command history and multi-line support.
+- Balanced parentheses logic for entering complex datasets directly in the REPL.
+- `colored` output for improved readability and error reporting.
+
+**Administrative CLI Commands:**
+
+- `linal init`: Automated setup for `./data` and `linal.toml`.
+- `linal load <file> <dataset>`: Direct Parquet ingestion via CLI.
+- `linal serve`: Shorthand for starting the HTTP server.
+
+**Server Robustness & API Docs:**
+
+- **Query Timeouts**: Long-running queries automatically cancel after 30s.
+- **Request Validation**: Size limits and non-empty checks for all incoming commands.
+- **OpenAPI / Swagger UI**: Built-in interactive documentation available at `/swagger-ui`.
+
+---
+
 ### Interface Standardization (v0.1.2)
 
 Unified interface across all access methods with flexible output formats:

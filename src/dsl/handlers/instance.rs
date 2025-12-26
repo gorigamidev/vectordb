@@ -7,7 +7,15 @@ pub fn handle_create_database(
     line: &str,
     line_no: usize,
 ) -> Result<DslOutput, DslError> {
-    let name = line.strip_prefix("CREATE DATABASE ").unwrap().trim();
+    let remainder = line.strip_prefix("CREATE DATABASE ").unwrap().trim();
+
+    // The name is the first word before any space or parenthesis
+    let name = remainder
+        .split(|c: char| c.is_whitespace() || c == '(')
+        .next()
+        .unwrap_or("")
+        .trim();
+
     if name.is_empty() {
         return Err(DslError::Parse {
             line: line_no,

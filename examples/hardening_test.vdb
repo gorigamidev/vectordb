@@ -1,0 +1,29 @@
+// tests/hardening_test.vdb
+// This script contains multi-line commands to verify the hardening work.
+
+CREATE DATABASE hardening_db (
+    "purpose" = "testing_multiline",
+    "version" = "1.1"
+)
+
+USE hardening_db
+
+DATASET test_ds COLUMNS (
+    id: INT,
+    val: FLOAT,
+    meta: STRING
+)
+
+INSERT INTO test_ds VALUES (
+    1, 
+    10.5, 
+    "first_row"
+)
+
+INSERT INTO test_ds VALUES (
+    2, 
+    20.5, 
+    "second_row"
+)
+
+SELECT * FROM test_ds WHERE id > 0

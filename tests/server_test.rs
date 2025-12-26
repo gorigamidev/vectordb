@@ -1,3 +1,4 @@
+use axum::http::StatusCode;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::time::sleep;
@@ -132,7 +133,7 @@ async fn test_json_backward_compatibility() {
     assert_eq!(resp.status(), 200);
     let body = resp.text().await.expect("Failed to get body");
     println!("JSON Backward Compat Response:\n{}", body);
-    
+
     assert!(body.contains("status: ok"));
     assert!(body.contains("Message: \"Defined vector: v\""));
 }
@@ -260,4 +261,56 @@ async fn test_invalid_format_defaults_to_toon() {
 
     let body = resp.text().await.expect("Failed to get body");
     assert!(body.contains("status: ok"));
+}
+#[tokio::test]
+async fn test_server_validation_empty() {
+    let db = Arc::new(Mutex::new(TensorDb::new()));
+    let port = 8101;
+    let db_clone = db.clone();
+
+    tokio::spawn(async move {
+        start_server(db_clone, port).await;
+    });
+
+    sleep(Duration::from_millis(1000)).await;
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("http://localhost:{}/execute", port))
+        .header("Content-Type", "text/plain")
+        .body("") // Empty body
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let body = resp.text().await.unwrap();
+    assert!(body.contains("Command cannot be empty"));
+}
+
+#[tokio::test]
+async fn test_server_validation_length() {
+    let db = Arc::new(Mutex::new(TensorDb::new()));
+    let port = 8102;
+    let db_clone = db.clone();
+
+    tokio::spawn(async move {
+        start_server(db_clone, port).await;
+    });
+
+    sleep(Duration::from_millis(1000)).await;
+
+    let long_command = "a".repeat(16 * 1024 + 1); // 16KB + 1
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("http://localhost:{}/execute", port))
+        .header("Content-Type", "text/plain")
+        .body(long_command)
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let body = resp.text().await.unwrap();
+    assert!(body.contains("Command too long"));
 }

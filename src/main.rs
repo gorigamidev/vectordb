@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand};
+use colored::*;
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
 use std::fs;
-use std::io::{self, BufRead, Write};
 use std::sync::{Arc, Mutex};
 use toon_format::encode_default;
 use vector_db_rs::dsl::{execute_line, DslOutput};
@@ -10,7 +12,7 @@ use vector_db_rs::server::start_server;
 #[derive(Parser)]
 #[command(name = "VectorDB")]
 #[command(version = "0.1")]
-#[command(about = "A vector database", long_about = None)]
+#[command(about = "A vector database (LINAL)", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -36,6 +38,20 @@ enum Commands {
     Server {
         #[arg(long, default_value_t = 8080)]
         port: u16,
+    },
+    /// Start HTTP server (shorthand for server)
+    Serve {
+        #[arg(long, default_value_t = 8080)]
+        port: u16,
+    },
+    /// Initialize a new VectorDB (LINAL) project structure
+    Init,
+    /// Load a Parquet file directly into a dataset
+    Load {
+        /// Path to the parquet file
+        file: String,
+        /// Target dataset name
+        dataset: String,
     },
 }
 
@@ -107,85 +123,160 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(1);
             }
         }
-        Some(Commands::Server { port }) => {
+        Some(Commands::Server { port }) | Some(Commands::Serve { port }) => {
             // Need Arc<Mutex<TensorDb>>
             let db_arc = Arc::new(Mutex::new(db));
             start_server(db_arc, port).await;
         }
+        Some(Commands::Init) => {
+            handle_init()?;
+        }
+        Some(Commands::Load { file, dataset }) => {
+            handle_load(&mut db, &file, &dataset)?;
+        }
         Some(Commands::Repl { format }) => {
-            let use_toon = format == "toon";
-
-            println!("VectorDB REPL v0.1");
-            if use_toon {
-                println!("Output format: TOON (machine-readable)");
-            } else {
-                println!("Output format: Display (human-readable)");
-            }
-            println!("Type 'EXIT' to quit.");
-
-            let stdin = io::stdin();
-            let mut handle = stdin.lock();
-            let mut buffer = String::new();
-
-            loop {
-                print!(">_>  ");
-                io::stdout().flush()?;
-                buffer.clear();
-                if handle.read_line(&mut buffer)? == 0 {
-                    break;
-                }
-                let line = buffer.trim();
-                if line.eq_ignore_ascii_case("EXIT") {
-                    break;
-                }
-                match execute_line(&mut db, line, 1) {
-                    Ok(output) => {
-                        if !matches!(output, DslOutput::None) {
-                            if use_toon {
-                                let toon = encode_default(&output)
-                                    .unwrap_or_else(|e| format!("Error encoding TOON: {}", e));
-                                println!("{}", toon);
-                            } else {
-                                println!("{}", output);
-                            }
-                        }
-                    }
-                    Err(e) => eprintln!("Error: {}", e),
-                }
-            }
+            run_repl(db, format == "toon")?;
         }
         None => {
-            // Default REPL with display format
-            println!("VectorDB REPL v0.1");
-            println!("Output format: Display (human-readable)");
-            println!("Type 'EXIT' to quit.");
+            run_repl(db, false)?;
+        }
+    }
 
-            let stdin = io::stdin();
-            let mut handle = stdin.lock();
-            let mut buffer = String::new();
+    Ok(())
+}
 
-            loop {
-                print!(">_>  ");
-                io::stdout().flush()?;
-                buffer.clear();
-                if handle.read_line(&mut buffer)? == 0 {
+fn handle_init() -> Result<(), Box<dyn std::error::Error>> {
+    let data_dir = "./data";
+    if !std::path::Path::new(data_dir).exists() {
+        fs::create_dir_all(data_dir)?;
+        println!("Created directory: {}", data_dir.green());
+    }
+
+    let config_path = "linal.toml";
+    if !std::path::Path::new(config_path).exists() {
+        let default_config = r#"[storage]
+data_dir = "./data"
+default_db = "default"
+"#;
+        fs::write(config_path, default_config)?;
+        println!("Created default configuration: {}", config_path.green());
+    } else {
+        println!(
+            "Configuration file already exists: {}",
+            config_path.yellow()
+        );
+    }
+
+    println!(
+        "{}",
+        "Initialization complete. Welcome to LINAL!".bold().blue()
+    );
+    Ok(())
+}
+
+fn handle_load(
+    db: &mut TensorDb,
+    file: &str,
+    dataset: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let command = format!("LOAD DATASET {} FROM \"{}\"", dataset, file);
+    match execute_line(db, &command, 1) {
+        Ok(output) => {
+            println!("{}", output.to_string().green());
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("{}: {}", "Error loading dataset".red(), e);
+            Err(e.into())
+        }
+    }
+}
+
+fn run_repl(mut db: TensorDb, use_toon: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let mut rl = DefaultEditor::new()?;
+    let history_path = ".linal_history";
+
+    if rl.load_history(history_path).is_err() {
+        // No history yet
+    }
+
+    println!("{}", "VectorDB (LINAL) REPL v0.1".bold().blue());
+    if use_toon {
+        println!("Output format: {}", "TOON (machine-readable)".yellow());
+    } else {
+        println!("Output format: {}", "Display (human-readable)".yellow());
+    }
+    println!("Type 'EXIT' or use Ctrl-D to quit.");
+
+    let mut current_cmd = String::new();
+    let mut paren_balance = 0;
+
+    loop {
+        let prompt = if paren_balance == 0 { ">_>  " } else { " ..  " };
+        let readline = rl.readline(prompt);
+
+        match readline {
+            Ok(line) => {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+
+                if trimmed.eq_ignore_ascii_case("EXIT") {
                     break;
                 }
-                let line = buffer.trim();
-                if line.eq_ignore_ascii_case("EXIT") {
-                    break;
+
+                rl.add_history_entry(trimmed)?;
+
+                if !current_cmd.is_empty() {
+                    current_cmd.push(' ');
                 }
-                match execute_line(&mut db, line, 1) {
-                    Ok(output) => {
-                        if !matches!(output, DslOutput::None) {
-                            println!("{}", output);
+                current_cmd.push_str(trimmed);
+
+                for c in trimmed.chars() {
+                    if c == '(' {
+                        paren_balance += 1;
+                    } else if c == ')' {
+                        paren_balance -= 1;
+                    }
+                }
+
+                if paren_balance == 0 {
+                    match execute_line(&mut db, &current_cmd, 1) {
+                        Ok(output) => {
+                            if !matches!(output, DslOutput::None) {
+                                if use_toon {
+                                    let toon = encode_default(&output)
+                                        .unwrap_or_else(|e| format!("Error encoding TOON: {}", e));
+                                    println!("{}", toon);
+                                } else {
+                                    println!("{}", output);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("{}: {}", "Error".red(), e);
                         }
                     }
-                    Err(e) => eprintln!("Error: {}", e),
+                    current_cmd.clear();
                 }
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("Interrupted");
+                current_cmd.clear();
+                paren_balance = 0;
+                continue;
+            }
+            Err(ReadlineError::Eof) => {
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
             }
         }
     }
 
+    let _ = rl.save_history(history_path);
     Ok(())
 }

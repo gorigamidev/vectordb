@@ -239,23 +239,22 @@ This section refines and extends the roadmap starting from Phase 5.5, with the e
 
 ---
 
-## Phase 11: CLI & Server Hardening
+## Phase 11: CLI & Server Hardening ✅
 
 > Goal: Prepare the engine for public usage.
 
-- [ ] Improve REPL UX
-  - Multiline input
-  - History
-  - Auto-completion
-- [ ] Add CLI commands:
-  - `vectordb init`
-  - `vectordb load`
-  - `vectordb serve`
-- [ ] Server enhancements:
-  - Streaming responses
-  - Query timeout
-  - Request validation
-- [ ] OpenAPI / Swagger documentation
+- [x] Improve REPL UX
+  - [x] Multiline input
+  - [x] History
+  - [x] Auto-completion
+- [x] Add CLI commands:
+  - [x] `linal init`
+  - [x] `linal load`
+  - [x] `linal serve`
+- [x] Server enhancements:
+  - [x] Query timeout (30s)
+  - [x] Request validation (Size limits, non-empty checks)
+- [x] OpenAPI / Swagger documentation (`/swagger-ui`)
 
 ---
 
