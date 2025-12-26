@@ -129,20 +129,16 @@ pub fn handle_select(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
 
     // Construct Dataset for Output
     let result_schema = physical_plan.schema();
-    let ds = crate::core::dataset::Dataset {
-        id: crate::core::dataset::DatasetId(0),
-        schema: result_schema.clone(),
-        rows: result_rows.clone(),
-        metadata: crate::core::dataset::DatasetMetadata {
-            name: Some("Query Result".into()),
-            created_at: std::time::SystemTime::now(),
-            row_count: result_rows.len(),
-            column_stats: std::collections::HashMap::new(),
-            schema: result_schema.as_ref().clone(), // Clone the full schema
-        },
-        indices: std::collections::HashMap::new(),
-        lazy_expressions: std::collections::HashMap::new(),
-    };
+    let ds = crate::core::dataset::Dataset::with_rows(
+        crate::core::dataset::DatasetId(0),
+        result_schema.clone(),
+        result_rows.clone(),
+        Some("Query Result".into()),
+    )
+    .map_err(|e| DslError::Parse {
+        line: line_no,
+        msg: e,
+    })?;
 
     Ok(DslOutput::Table(ds))
 }
@@ -935,7 +931,7 @@ fn handle_add_column(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
             line: line_no,
             msg: "Invalid computed column syntax".into(),
         })?;
-        
+
         // Check for LAZY keyword
         let is_lazy = column_spec.to_uppercase().contains("LAZY");
         let expression_part = if is_lazy {
@@ -946,25 +942,25 @@ fn handle_add_column(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
         } else {
             column_spec[eq_idx + 1..].trim()
         };
-        
+
         let column_name = column_spec[..eq_idx].trim().to_string();
-        
+
         if column_name.is_empty() {
             return Err(DslError::Parse {
                 line: line_no,
                 msg: "Column name cannot be empty".into(),
             });
         }
-        
+
         // Parse the expression
         let expr = parse_expression(expression_part, line_no)?;
-        
+
         // Get dataset
         let dataset = db.get_dataset(dataset_name).map_err(|e| DslError::Engine {
             line: line_no,
             source: e,
         })?;
-        
+
         if is_lazy {
             // For lazy columns, we only need to infer the type from one row
             let value_type = if dataset.rows.is_empty() {
@@ -977,7 +973,7 @@ fn handle_add_column(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
                 let val = evaluate_expression(&expr, &dataset.rows[0]);
                 val.value_type()
             };
-            
+
             // Add lazy column (no pre-computed values needed)
             db.alter_dataset_add_computed_column(
                 dataset_name,
@@ -991,7 +987,7 @@ fn handle_add_column(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
                 line: line_no,
                 source: e,
             })?;
-            
+
             Ok(DslOutput::Message(format!(
                 "Added lazy computed column '{}' to dataset '{}'",
                 column_name, dataset_name
@@ -1001,7 +997,7 @@ fn handle_add_column(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
             use crate::query::physical::evaluate_expression;
             let mut computed_values = Vec::new();
             let mut inferred_type: Option<crate::core::value::ValueType> = None;
-            
+
             for row in &dataset.rows {
                 let val = evaluate_expression(&expr, row);
                 if inferred_type.is_none() {
@@ -1009,12 +1005,12 @@ fn handle_add_column(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
                 }
                 computed_values.push(val);
             }
-            
+
             let value_type = inferred_type.ok_or_else(|| DslError::Parse {
                 line: line_no,
                 msg: "Cannot infer type from empty dataset".into(),
             })?;
-            
+
             // Add column with computed values
             db.alter_dataset_add_computed_column(
                 dataset_name,
@@ -1028,7 +1024,7 @@ fn handle_add_column(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Ds
                 line: line_no,
                 source: e,
             })?;
-            
+
             Ok(DslOutput::Message(format!(
                 "Added computed column '{}' to dataset '{}'",
                 column_name, dataset_name
@@ -1257,23 +1253,27 @@ fn parse_term_mul_div(s: &str, line_no: usize) -> Result<Expr, DslError> {
 
 /// Handle MATERIALIZE command
 /// MATERIALIZE <dataset>.<column> or MATERIALIZE <dataset>
-pub fn handle_materialize(db: &mut TensorDb, line: &str, line_no: usize) -> Result<DslOutput, DslError> {
+pub fn handle_materialize(
+    db: &mut TensorDb,
+    line: &str,
+    line_no: usize,
+) -> Result<DslOutput, DslError> {
     let rest = line.trim_start_matches("MATERIALIZE").trim();
-    
+
     // Check if it's dataset.column or just dataset
     if rest.contains('.') {
         // MATERIALIZE dataset.column (for now, materialize all lazy columns)
         let dot_idx = rest.find('.').unwrap();
         let dataset_name = rest[..dot_idx].trim();
         let _column_name = rest[dot_idx + 1..].trim();
-        
+
         // For now, materialize all lazy columns (we can optimize later to materialize just one)
         db.materialize_lazy_columns(dataset_name)
             .map_err(|e| DslError::Engine {
                 line: line_no,
                 source: e,
             })?;
-        
+
         Ok(DslOutput::Message(format!(
             "Materialized lazy columns in dataset '{}'",
             dataset_name
@@ -1286,7 +1286,7 @@ pub fn handle_materialize(db: &mut TensorDb, line: &str, line_no: usize) -> Resu
                 line: line_no,
                 source: e,
             })?;
-        
+
         Ok(DslOutput::Message(format!(
             "Materialized lazy columns in dataset '{}'",
             dataset_name

@@ -1,11 +1,9 @@
-// src/dataset.rs
-
 use super::tuple::{Schema, Tuple};
 use super::value::{Value, ValueType};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::SystemTime;
 
 /// Unique identifier for datasets
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
@@ -24,26 +22,34 @@ pub struct ColumnStats {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatasetMetadata {
     pub name: Option<String>,
-    pub created_at: SystemTime,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub version: u32,
     pub row_count: usize,
     pub column_stats: HashMap<String, ColumnStats>,
     pub schema: Schema,
+    pub extra: HashMap<String, String>,
 }
 
 impl DatasetMetadata {
     pub fn new(name: Option<String>, schema: Schema) -> Self {
+        let now = Utc::now();
         Self {
             name,
-            created_at: SystemTime::now(),
+            created_at: now,
+            updated_at: now,
+            version: 1,
             row_count: 0,
             column_stats: HashMap::new(),
             schema,
+            extra: HashMap::new(),
         }
     }
 
     /// Update statistics based on current rows
     pub fn update_stats(&mut self, schema: &Schema, rows: &[Tuple]) {
         self.row_count = rows.len();
+        self.updated_at = Utc::now();
         self.column_stats.clear();
 
         for field in &schema.fields {
@@ -365,9 +371,11 @@ impl Dataset {
         if field.is_lazy {
             // Evaluate lazy expression for each row
             use crate::query::physical::evaluate_expression;
-            let expr = self.lazy_expressions.get(column_name)
+            let expr = self
+                .lazy_expressions
+                .get(column_name)
                 .ok_or_else(|| format!("Lazy expression not found for column '{}'", column_name))?;
-            
+
             let mut column_values = Vec::with_capacity(self.rows.len());
             for row in &self.rows {
                 let val = evaluate_expression(expr, row);
@@ -499,7 +507,8 @@ impl Dataset {
                 new_rows.push(Tuple::new(new_schema.clone(), new_values)?);
             }
             self.rows = new_rows;
-            self.lazy_expressions.insert(column_name.clone(), expression);
+            self.lazy_expressions
+                .insert(column_name.clone(), expression);
         } else {
             // Materialized: validate and store computed values
             // Validate that computed values match the number of rows
@@ -573,7 +582,9 @@ impl Dataset {
 
     /// Materialize all lazy columns (convert to regular columns with computed values)
     pub fn materialize_lazy_columns(&mut self) -> Result<(), String> {
-        let lazy_columns: Vec<String> = self.schema.fields
+        let lazy_columns: Vec<String> = self
+            .schema
+            .fields
             .iter()
             .filter(|f| f.is_lazy)
             .map(|f| f.name.clone())
@@ -589,7 +600,7 @@ impl Dataset {
 
         for row in &self.rows {
             let mut new_values = row.values.clone();
-            
+
             // Evaluate lazy columns
             for (i, field) in self.schema.fields.iter().enumerate() {
                 if field.is_lazy && i < new_values.len() {
@@ -615,7 +626,7 @@ impl Dataset {
         // Update dataset
         self.rows = new_rows;
         self.schema = new_schema;
-        
+
         // Clear lazy expressions (they're now materialized)
         for col_name in &lazy_columns {
             self.lazy_expressions.remove(col_name);

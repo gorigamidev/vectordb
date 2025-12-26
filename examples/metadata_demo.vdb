@@ -1,0 +1,21 @@
+// Verification of Phase 10.5: Robust Metadata
+CREATE DATABASE meta_test
+USE meta_test
+
+DATASET products COLUMNS (id: INT, price: FLOAT)
+INSERT INTO products VALUES (1, 10.5)
+INSERT INTO products VALUES (2, 20.0)
+
+// Verify initial state
+SHOW ALL DATASETS
+
+// Set custom metadata
+SET DATASET products METADATA author = "Nicolas"
+SET DATASET products METADATA environment = "production"
+SET DATASET products METADATA version = "v2.0.1"
+
+// Save to disk and check JSON output manually
+SAVE DATASET products
+
+// List to ensure it's there
+LIST DATASETS

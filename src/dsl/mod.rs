@@ -149,6 +149,15 @@ pub fn execute_line(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Dsl
                 msg: format!("Unsupported DROP command: {}", line),
             })
         }
+    } else if line.starts_with("SET ") {
+        if line.starts_with("SET DATASET ") {
+            handlers::metadata::handle_set_metadata(db, line, line_no)
+        } else {
+            Err(DslError::Parse {
+                line: line_no,
+                msg: format!("Unsupported SET command: {}", line),
+            })
+        }
     } else if line.starts_with("SAVE ") {
         handlers::persistence::handle_save(db, line, line_no)
     } else if line.starts_with("LOAD ") {

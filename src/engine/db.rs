@@ -39,6 +39,22 @@ impl DatabaseInstance {
     }
 
     // ... all existing methods of the old TensorDb ...
+
+    pub fn set_dataset_metadata(
+        &mut self,
+        name: &str,
+        key: String,
+        value: String,
+    ) -> Result<(), EngineError> {
+        let dataset = self
+            .dataset_store
+            .get_mut_by_name(name)
+            .map_err(|_| EngineError::NameNotFound(name.to_string()))?;
+
+        dataset.metadata.extra.insert(key, value);
+        dataset.metadata.updated_at = chrono::Utc::now();
+        Ok(())
+    }
 }
 
 /// High-level engine that manages multiple DatabaseInstances
@@ -367,6 +383,16 @@ impl TensorDb {
 
     pub fn list_indices(&self) -> Vec<(String, String, String)> {
         self.active_instance().list_indices()
+    }
+
+    pub fn set_dataset_metadata(
+        &mut self,
+        name: &str,
+        key: String,
+        value: String,
+    ) -> Result<(), EngineError> {
+        self.active_instance_mut()
+            .set_dataset_metadata(name, key, value)
     }
 }
 

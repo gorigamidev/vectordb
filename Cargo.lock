@@ -577,6 +577,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-targets 0.52.6",
 ]
@@ -3051,6 +3052,7 @@ version = "0.1.2"
 dependencies = [
  "arrow",
  "axum",
+ "chrono",
  "clap",
  "parquet",
  "reqwest",
