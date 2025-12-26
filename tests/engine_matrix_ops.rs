@@ -1,6 +1,6 @@
 // tests/engine_matrix_ops.rs
 
-use vector_db_rs::{Shape, TensorDb};
+use linal::{Shape, TensorDb};
 
 #[test]
 fn test_engine_matmul() {
@@ -193,7 +193,7 @@ fn test_engine_strict_mode_matmul() {
         "A",
         Shape::new(vec![2, 2]),
         vec![1.0, 2.0, 3.0, 4.0],
-        vector_db_rs::TensorKind::Strict,
+        linal::TensorKind::Strict,
     )
     .unwrap();
 
@@ -201,7 +201,7 @@ fn test_engine_strict_mode_matmul() {
         "B",
         Shape::new(vec![2, 2]),
         vec![5.0, 6.0, 7.0, 8.0],
-        vector_db_rs::TensorKind::Strict,
+        linal::TensorKind::Strict,
     )
     .unwrap();
 

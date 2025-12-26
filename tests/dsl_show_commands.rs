@@ -1,6 +1,6 @@
 // tests/dsl_show_commands.rs
 
-use vector_db_rs::{execute_script, TensorDb};
+use linal::{execute_script, TensorDb};
 
 #[test]
 fn test_show_shape_vector() {

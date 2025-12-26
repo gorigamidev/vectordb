@@ -1,6 +1,6 @@
-# ⚡ VectorDB
+# ⚡ LINAL
 
-**VectorDB** is an experimental, in-memory analytical engine built for scientific computing, machine learning, and structured data analysis. It bridges the gap between Relational Databases and Tensor Computation, providing a SQL-like DSL that treats Vectors and Matrices as first-class citizens.
+**LINAL** is an experimental, in-memory analytical engine built for scientific computing, machine learning, and structured data analysis. It bridges the gap between Relational Databases and Tensor Computation, providing a SQL-like DSL that treats Vectors and Matrices as first-class citizens.
 
 ---
 
@@ -40,7 +40,7 @@ SHOW SCHEMA analytics
 
 ### 3. Matrix & Vector Aggregations
 
-VectorDB supports element-wise aggregations on complex types with full SQL-like aggregation functions.
+LINAL supports element-wise aggregations on complex types with full SQL-like aggregation functions.
 
 ```sql
 -- Element-wise Summation of Matrices by Region
@@ -118,7 +118,7 @@ SET DATASET users METADATA tags = "scientific,test"
 
 ## Multi-Paradigm Access
 
-VectorDB provides a unified interface across all access methods.
+LINAL provides a unified interface across all access methods.
 
 ### 1. Interactive REPL (Shell)
 
@@ -134,11 +134,11 @@ cargo run -- repl --format=toon
 
 ### 2. Script Execution (Automation)
 
-The `run` command executes `.vdb` script files. Scripts support **multi-line commands** (e.g., complex `DATASET` definitions) using balanced parentheses logic.
+The `run` command executes `.lnl` script files. Scripts support **multi-line commands** (e.g., complex `DATASET` definitions) using balanced parentheses logic.
 
 ```bash
 # Run a script file
-cargo run -- run examples/smoke_test.vdb
+cargo run -- run examples/smoke_test.lnl
 
 # Scripts handle multi-line definitions gracefully:
 # DATASET users COLUMNS (
@@ -340,8 +340,8 @@ default_db = "default"
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/vector-db-rs.git
-cd vector-db-rs
+git clone https://github.com/yourusername/linal.git
+cd linal
 cargo build --release
 ```
 
@@ -351,7 +351,7 @@ We have a comprehensive feature demo script included.
 
 ```bash
 # Run the features demo
-cargo run -- run examples/features_demo.vdb
+cargo run -- run examples/features_demo.lnl
 ```
 
 ### Interactive REPL
@@ -381,4 +381,4 @@ $ cargo run
 
 ---
 
-**VectorDB**: *Where SQL meets Linear Algebra.*
+**LINAL**: *Where SQL meets Linear Algebra.*

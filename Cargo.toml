@@ -1,7 +1,12 @@
 [package]
-name = "vector-db-rs"
+name = "linal"
 version = "0.1.2"
 edition = "2021"
+description = "In-memory linear algebra engine for vectors, matrices and tensors"
+
+[[bin]]
+name = "linal"
+path = "src/main.rs"
 
 [dependencies]
 arrow = "53.3.0"

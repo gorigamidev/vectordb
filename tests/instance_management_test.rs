@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::PathBuf;
-use vector_db_rs::core::config::{EngineConfig, StorageConfig};
-use vector_db_rs::dsl::{execute_line, DslOutput};
-use vector_db_rs::engine::TensorDb;
+use linal::core::config::{EngineConfig, StorageConfig};
+use linal::dsl::{execute_line, DslOutput};
+use linal::engine::TensorDb;
 
 fn setup_test_db(temp_dir: &str) -> TensorDb {
     let _ = fs::remove_dir_all(temp_dir);

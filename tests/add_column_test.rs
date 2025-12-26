@@ -2,9 +2,9 @@
 //
 // Tests for ADD COLUMN command
 
-use vector_db_rs::{execute_script, TensorDb};
-use vector_db_rs::dsl::{execute_line, DslOutput};
-use vector_db_rs::core::value::Value;
+use linal::{execute_script, TensorDb};
+use linal::dsl::{execute_line, DslOutput};
+use linal::core::value::Value;
 
 #[test]
 fn test_add_column_basic() {

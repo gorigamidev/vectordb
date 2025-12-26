@@ -1,7 +1,7 @@
-use vector_db_rs::core::value::Value;
-use vector_db_rs::engine::TensorDb;
-use vector_db_rs::query::logical::{AggregateFunction, Expr, LogicalPlan};
-use vector_db_rs::query::planner::Planner;
+use linal::core::value::Value;
+use linal::engine::TensorDb;
+use linal::query::logical::{AggregateFunction, Expr, LogicalPlan};
+use linal::query::planner::Planner;
 
 #[test]
 fn test_aggregation_execution_workflow() {
@@ -14,7 +14,7 @@ fn test_aggregation_execution_workflow() {
     INSERT INTO sales VALUES ("South", 150)
     INSERT INTO sales VALUES ("East", 300)
     "#;
-    vector_db_rs::dsl::execute_script(&mut db, script).expect("Setup failed");
+    linal::dsl::execute_script(&mut db, script).expect("Setup failed");
 
     let dataset = db.get_dataset("sales").expect("Dataset not found");
     let schema = dataset.schema.clone();
@@ -73,10 +73,10 @@ fn test_dsl_aggregation_workflow() {
     INSERT INTO sales VALUES ("South", 150)
     INSERT INTO sales VALUES ("East", 300)
     "#;
-    vector_db_rs::dsl::execute_script(&mut db, script).expect("Setup failed");
+    linal::dsl::execute_script(&mut db, script).expect("Setup failed");
 
     let aggr_query = r#"DATASET res FROM sales GROUP BY region SELECT region, SUM(amount)"#;
-    vector_db_rs::dsl::execute_line(&mut db, aggr_query, 0).expect("Aggregation query failed");
+    linal::dsl::execute_line(&mut db, aggr_query, 0).expect("Aggregation query failed");
 
     // Check results
     let dataset = db.get_dataset("res").expect("Result dataset not found");
@@ -98,7 +98,7 @@ fn test_dsl_aggregation_workflow() {
 
     // Test Global Agg
     let global_query = r#"DATASET global_res FROM sales SELECT COUNT(*)"#;
-    vector_db_rs::dsl::execute_line(&mut db, global_query, 0).expect("Global aggregation failed");
+    linal::dsl::execute_line(&mut db, global_query, 0).expect("Global aggregation failed");
     let global = db.get_dataset("global_res").expect("Global res not found");
     assert_eq!(global.rows.len(), 1);
     assert_eq!(global.rows[0].values[0], Value::Int(5));
@@ -113,11 +113,11 @@ fn test_vector_aggregation() {
     INSERT INTO vectors VALUES (2, [3.0, 4.0])
     INSERT INTO vectors VALUES (3, [5.0, 6.0])
     "#;
-    vector_db_rs::dsl::execute_script(&mut db, script).expect("Setup failed");
+    linal::dsl::execute_script(&mut db, script).expect("Setup failed");
 
     // SUM([1,2], [3,4], [5,6]) = [9, 12]
     let sum_query = r#"DATASET v_sum FROM vectors SELECT SUM(v)"#;
-    vector_db_rs::dsl::execute_line(&mut db, sum_query, 0).expect("Vector Sum failed");
+    linal::dsl::execute_line(&mut db, sum_query, 0).expect("Vector Sum failed");
 
     let res = db.get_dataset("v_sum").expect("v_sum not found");
     let row = &res.rows[0];
@@ -129,7 +129,7 @@ fn test_vector_aggregation() {
 
     // MAX([1,2], [3,4], [5,6]) = [5, 6] (Element wise max)
     let max_query = r#"DATASET v_max FROM vectors SELECT MAX(v)"#;
-    vector_db_rs::dsl::execute_line(&mut db, max_query, 0).expect("Vector Max failed");
+    linal::dsl::execute_line(&mut db, max_query, 0).expect("Vector Max failed");
 
     let res_max = db.get_dataset("v_max").expect("v_max not found");
     let row_max = &res_max.rows[0];
@@ -149,11 +149,11 @@ fn test_computed_column_aggregation() {
     INSERT INTO items VALUES (2, 5, 4)
     INSERT INTO items VALUES (3, 20, 1)
     "#;
-    vector_db_rs::dsl::execute_script(&mut db, script).expect("Setup failed");
+    linal::dsl::execute_script(&mut db, script).expect("Setup failed");
 
     // SUM(price * qty) -> 10*2 + 5*4 + 20*1 = 20 + 20 + 20 = 60
     let query = r#"DATASET total FROM items SELECT SUM(price * qty)"#;
-    vector_db_rs::dsl::execute_line(&mut db, query, 0).expect("Computed sum failed");
+    linal::dsl::execute_line(&mut db, query, 0).expect("Computed sum failed");
 
     let res = db.get_dataset("total").expect("total not found");
     assert_eq!(res.rows[0].values[0], Value::Int(60));
@@ -164,7 +164,7 @@ fn test_computed_column_aggregation() {
     // 3: 20 + 1*2 = 22
     // Sum = 14+13+22 = 49
     let query2 = r#"DATASET complex FROM items SELECT SUM(price + qty * 2)"#;
-    vector_db_rs::dsl::execute_line(&mut db, query2, 0).expect("Complex sum failed");
+    linal::dsl::execute_line(&mut db, query2, 0).expect("Complex sum failed");
 
     let res2 = db.get_dataset("complex").expect("complex not found");
     assert_eq!(res2.rows[0].values[0], Value::Int(49));
@@ -178,12 +178,12 @@ fn test_matrix_aggregation() {
     INSERT INTO matrices VALUES (1, [[1.0, 2.0], [3.0, 4.0]])
     INSERT INTO matrices VALUES (2, [[10.0, 20.0], [30.0, 40.0]])
     "#;
-    vector_db_rs::dsl::execute_script(&mut db, script).expect("Setup failed");
+    linal::dsl::execute_script(&mut db, script).expect("Setup failed");
 
     // SUM
     // [[1+10, 2+20], [3+30, 4+40]] = [[11, 22], [33, 44]]
     let query = r#"DATASET mat_sum FROM matrices SELECT SUM(val)"#;
-    vector_db_rs::dsl::execute_line(&mut db, query, 0).expect("Sum failed");
+    linal::dsl::execute_line(&mut db, query, 0).expect("Sum failed");
 
     let res = db.get_dataset("mat_sum").expect("mat_sum not found");
     if let Value::Matrix(m) = &res.rows[0].values[0] {
@@ -197,7 +197,7 @@ fn test_matrix_aggregation() {
     // Computed: val * 2
     // [[2, 4], [6, 8]] + [[20, 40], [60, 80]] = [[22, 44], [66, 88]]
     let query2 = r#"DATASET mat_computed FROM matrices SELECT SUM(val * 2)"#;
-    vector_db_rs::dsl::execute_line(&mut db, query2, 0).expect("Computed sum failed");
+    linal::dsl::execute_line(&mut db, query2, 0).expect("Computed sum failed");
 
     let res2 = db
         .get_dataset("mat_computed")

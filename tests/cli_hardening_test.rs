@@ -34,12 +34,12 @@ fn test_cli_init() {
 
 #[test]
 fn test_cli_run_multiline() {
-    // We'll use tests/hardening_test.vdb
+    // We'll use tests/hardening_test.lnl
     // This script creates a database and a dataset using multiline commands.
 
     let output = Command::new(get_bin())
         .arg("run")
-        .arg("examples/hardening_test.vdb")
+        .arg("examples/hardening_test.lnl")
         .output()
         .expect("Failed to execute run command");
 

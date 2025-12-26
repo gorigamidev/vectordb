@@ -1,10 +1,10 @@
 use std::fs;
 use std::sync::Arc;
-use vector_db_rs::core::storage::{ParquetStorage, StorageEngine};
-use vector_db_rs::core::dataset::{Dataset, DatasetId};
-use vector_db_rs::core::tuple::{Schema, Field, Tuple};
-use vector_db_rs::core::value::{Value, ValueType};
-use vector_db_rs::core::tensor::{Tensor, TensorId, Shape};
+use linal::core::storage::{ParquetStorage, StorageEngine};
+use linal::core::dataset::{Dataset, DatasetId};
+use linal::core::tuple::{Schema, Field, Tuple};
+use linal::core::value::{Value, ValueType};
+use linal::core::tensor::{Tensor, TensorId, Shape};
 
 /// Helper to create a test dataset
 fn create_test_dataset(name: &str) -> Dataset {

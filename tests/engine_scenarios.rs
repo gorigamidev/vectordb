@@ -1,4 +1,4 @@
-use vector_db_rs::{
+use linal::{
     TensorDb,
     Shape,
     BinaryOp,

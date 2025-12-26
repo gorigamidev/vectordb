@@ -1,4 +1,4 @@
-use vector_db_rs::engine::TensorDb;
+use linal::engine::TensorDb;
 
 #[test]
 fn test_filter_optimization_workflow() {
@@ -18,7 +18,7 @@ fn test_filter_optimization_workflow() {
     SHOW alice_users
     "#;
 
-    vector_db_rs::dsl::execute_script(&mut db, script).expect("Script execution failed");
+    linal::dsl::execute_script(&mut db, script).expect("Script execution failed");
 
     let alice_users = db.get_dataset("alice_users").expect("Dataset not found");
     assert_eq!(alice_users.len(), 2);
@@ -29,7 +29,7 @@ fn test_filter_optimization_workflow() {
         .rows
         .iter()
         .map(|r| match r.get("age") {
-            Some(vector_db_rs::core::value::Value::Int(i)) => *i,
+            Some(linal::core::value::Value::Int(i)) => *i,
             _ => 0,
         })
         .collect();
@@ -51,7 +51,7 @@ fn test_vector_search_workflow() {
     INSERT INTO vectors VALUES (3, [0.0, 0.0, 1.0])
     "#;
 
-    vector_db_rs::dsl::execute_script(&mut db, script).expect("Script execution failed");
+    linal::dsl::execute_script(&mut db, script).expect("Script execution failed");
 
     // Search for nearest to [1.0, 0.1, 0.0] -> Should be id 1
     // SEARCH target FROM source QUERY vector ON column K=k
@@ -60,7 +60,7 @@ fn test_vector_search_workflow() {
     SHOW results
     "#;
 
-    vector_db_rs::dsl::execute_script(&mut db, search_script)
+    linal::dsl::execute_script(&mut db, search_script)
         .expect("Search script execution failed");
 
     let results = db
@@ -68,7 +68,7 @@ fn test_vector_search_workflow() {
         .expect("Results dataset not found");
     assert_eq!(results.len(), 1);
     // Id 1 should be the result
-    if let Some(vector_db_rs::core::value::Value::Int(id)) = results.rows[0].get("id") {
+    if let Some(linal::core::value::Value::Int(id)) = results.rows[0].get("id") {
         assert_eq!(*id, 1);
     } else {
         panic!("Result row does not have id");

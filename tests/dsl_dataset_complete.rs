@@ -6,7 +6,7 @@
 // - Phase 2: Dataset definition and insertion
 // - Phase 3: Query language
 
-use vector_db_rs::{execute_script, TensorDb};
+use linal::{execute_script, TensorDb};
 
 #[test]
 fn test_complete_dataset_workflow() {

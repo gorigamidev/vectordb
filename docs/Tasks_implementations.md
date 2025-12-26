@@ -1,4 +1,4 @@
-# VectorDB Evolution: Dataset & Tuple Support
+# LINAL Evolution: Dataset & Tuple Support
 
 ## Phase 0: Preparation
 
@@ -68,7 +68,7 @@
 
 ---------------
 
-# VectorDB / Tensor Engine – Extended Roadmap (Post-Phase 5.5)
+# LINAL / Tensor Engine – Extended Roadmap (Post-Phase 5.5)
 
 This section refines and extends the roadmap starting from Phase 5.5, with the explicit goal of reaching a **public, usable engine** that can operate as:
 
@@ -212,7 +212,7 @@ This section refines and extends the roadmap starting from Phase 5.5, with the e
 
 ## Phase 10: Engine Lifecycle & Instance Management ✅
 
-> Goal: Make VectorDB behave like a real database engine.
+> Goal: Make LINAL behave like a real database engine.
 
 - [x] Engine instances
   - [x] Named databases

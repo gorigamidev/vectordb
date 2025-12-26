@@ -1,6 +1,6 @@
 // tests/dsl_matrix_ops.rs
 
-use vector_db_rs::{execute_script, TensorDb};
+use linal::{execute_script, TensorDb};
 
 #[test]
 fn test_dsl_vector_syntax() {

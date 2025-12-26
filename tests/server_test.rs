@@ -2,8 +2,8 @@ use axum::http::StatusCode;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::time::sleep;
-use vector_db_rs::engine::TensorDb;
-use vector_db_rs::server::start_server;
+use linal::engine::TensorDb;
+use linal::server::start_server;
 
 #[tokio::test]
 async fn test_toon_server_output() {

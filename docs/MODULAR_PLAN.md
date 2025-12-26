@@ -1,4 +1,4 @@
-# VectorDB Modular Architecture Restructuring Plan
+# LINAL Modular Architecture Restructuring Plan
 ## Overview
 Restructure the codebase from a flat module structure to a hierarchical, modular architecture that follows OOP principles and Rust best practices.
 

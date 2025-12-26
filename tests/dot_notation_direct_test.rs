@@ -1,7 +1,7 @@
 use std::sync::Arc;
-use vector_db_rs::core::tuple::{Field, Schema, Tuple};
-use vector_db_rs::core::value::{Value, ValueType};
-use vector_db_rs::engine::TensorDb;
+use linal::core::tuple::{Field, Schema, Tuple};
+use linal::core::value::{Value, ValueType};
+use linal::engine::TensorDb;
 
 #[test]
 fn test_dataset_column_access_direct() {

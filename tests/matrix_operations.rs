@@ -1,6 +1,6 @@
 // tests/matrix_operations.rs
 
-use vector_db_rs::{flatten, index, matmul, reshape, slice, transpose, Shape, Tensor, TensorId};
+use linal::{flatten, index, matmul, reshape, slice, transpose, Shape, Tensor, TensorId};
 
 fn create_matrix(id: u64, rows: usize, cols: usize, data: Vec<f32>) -> Tensor {
     let shape = Shape::new(vec![rows, cols]);

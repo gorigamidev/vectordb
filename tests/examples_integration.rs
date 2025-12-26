@@ -1,18 +1,18 @@
 // tests/examples_integration.rs
 //
-// Integration tests for example .vdb files
+// Integration tests for example .lnl files
 // These tests verify that the example scripts execute correctly end-to-end
 
 use std::fs;
-use vector_db_rs::{execute_script, TensorDb};
+use linal::{execute_script, TensorDb};
 
 #[test]
 fn test_example_vdb_integration() {
     let mut db = TensorDb::new();
     
-    // Load and execute the example.vdb file
-    let script = fs::read_to_string("examples/example.vdb")
-        .expect("Failed to read examples/example.vdb");
+    // Load and execute the example.lnl file
+    let script = fs::read_to_string("examples/example.lnl")
+        .expect("Failed to read examples/example.lnl");
     
     // Execute the script - should not panic
     execute_script(&mut db, &script).expect("Example script execution failed");
@@ -77,9 +77,9 @@ fn test_example_vdb_integration() {
 fn test_features_demo_vdb_integration() {
     let mut db = TensorDb::new();
     
-    // Load and execute the features_demo.vdb file
-    let script = fs::read_to_string("examples/features_demo.vdb")
-        .expect("Failed to read examples/features_demo.vdb");
+    // Load and execute the features_demo.lnl file
+    let script = fs::read_to_string("examples/features_demo.lnl")
+        .expect("Failed to read examples/features_demo.lnl");
     
     // Execute the script - should not panic
     execute_script(&mut db, &script).expect("Features demo script execution failed");

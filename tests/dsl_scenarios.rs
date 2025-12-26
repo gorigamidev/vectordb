@@ -1,6 +1,6 @@
 // tests/dsl_scenarios.rs
 
-use vector_db_rs::{
+use linal::{
     TensorDb,
     execute_script,
 };

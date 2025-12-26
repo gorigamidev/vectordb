@@ -1,4 +1,4 @@
-# VectorDB Evolution: Dataset & Tuple Support
+# LINAL Evolution: Dataset & Tuple Support
 
 Building on the existing tensor foundation to create a comprehensive in-memory vectorial database with support for heterogeneous data, datasets (tables), and advanced query operations.
 

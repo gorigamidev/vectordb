@@ -1,18 +1,18 @@
 use clap::{Parser, Subcommand};
 use colored::*;
+use linal::dsl::{execute_line, DslOutput};
+use linal::engine::TensorDb;
+use linal::server::start_server;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use std::fs;
 use std::sync::{Arc, Mutex};
 use toon_format::encode_default;
-use vector_db_rs::dsl::{execute_line, DslOutput};
-use vector_db_rs::engine::TensorDb;
-use vector_db_rs::server::start_server;
 
 #[derive(Parser)]
-#[command(name = "VectorDB")]
+#[command(name = "LINAL")]
 #[command(version = "0.1")]
-#[command(about = "A vector database (LINAL)", long_about = None)]
+#[command(about = "LINAL: Linear Algebra Analytical Engine", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -28,7 +28,7 @@ enum Commands {
     },
     /// Run a script file
     Run {
-        /// Path to the script file (.vdb)
+        /// Path to the script file (.lnl)
         file: String,
         /// Output format: 'display' (default, human-readable) or 'toon' (machine-readable)
         #[arg(long, default_value = "display")]
@@ -44,7 +44,7 @@ enum Commands {
         #[arg(long, default_value_t = 8080)]
         port: u16,
     },
-    /// Initialize a new VectorDB (LINAL) project structure
+    /// Initialize a new LINAL project structure
     Init,
     /// Load a Parquet file directly into a dataset
     Load {
@@ -200,7 +200,7 @@ fn run_repl(mut db: TensorDb, use_toon: bool) -> Result<(), Box<dyn std::error::
         // No history yet
     }
 
-    println!("{}", "VectorDB (LINAL) REPL v0.1".bold().blue());
+    println!("{}", "LINAL REPL v0.1".bold().blue());
     if use_toon {
         println!("Output format: {}", "TOON (machine-readable)".yellow());
     } else {

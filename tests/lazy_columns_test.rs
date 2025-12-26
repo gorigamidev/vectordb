@@ -1,6 +1,6 @@
-use vector_db_rs::core::value::Value;
-use vector_db_rs::dsl::execute_line;
-use vector_db_rs::engine::TensorDb;
+use linal::core::value::Value;
+use linal::dsl::execute_line;
+use linal::engine::TensorDb;
 
 #[test]
 fn test_lazy_column_basic() {
@@ -13,11 +13,11 @@ fn test_lazy_column_basic() {
     
     // Add lazy column
     let result = execute_line(&mut db, "DATASET test ADD COLUMN c = a + b LAZY", 4).unwrap();
-    assert!(matches!(result, vector_db_rs::dsl::DslOutput::Message(_)));
+    assert!(matches!(result, linal::dsl::DslOutput::Message(_)));
     
     // Query should evaluate lazy column
     let result = execute_line(&mut db, "SELECT * FROM test", 5).unwrap();
-    if let vector_db_rs::dsl::DslOutput::Table(ds) = result {
+    if let linal::dsl::DslOutput::Table(ds) = result {
         assert_eq!(ds.rows.len(), 2);
         assert_eq!(ds.rows[0].values[2], Value::Int(3)); // 1 + 2
         assert_eq!(ds.rows[1].values[2], Value::Int(7)); // 3 + 4
@@ -43,7 +43,7 @@ fn test_lazy_column_vs_materialized() {
     
     // Query should show both columns evaluated
     let result = execute_line(&mut db, "SELECT * FROM test", 6).unwrap();
-    if let vector_db_rs::dsl::DslOutput::Table(ds) = result {
+    if let linal::dsl::DslOutput::Table(ds) = result {
         assert_eq!(ds.rows.len(), 2);
         assert_eq!(ds.rows[0].values[1], Value::Int(10)); // 5 * 2 (materialized)
         assert_eq!(ds.rows[0].values[2], Value::Int(15)); // 5 * 3 (lazy evaluated)
@@ -86,11 +86,11 @@ fn test_materialize_lazy_columns() {
     
     // Materialize
     let result = execute_line(&mut db, "MATERIALIZE test", 4).unwrap();
-    assert!(matches!(result, vector_db_rs::dsl::DslOutput::Message(_)));
+    assert!(matches!(result, linal::dsl::DslOutput::Message(_)));
     
     // Query - should still work but column is now materialized
     let result = execute_line(&mut db, "SELECT * FROM test", 5).unwrap();
-    if let vector_db_rs::dsl::DslOutput::Table(ds) = result {
+    if let linal::dsl::DslOutput::Table(ds) = result {
         assert_eq!(ds.rows.len(), 1);
         assert_eq!(ds.rows[0].values[1], Value::Int(49)); // 7 * 7
     } else {
@@ -117,7 +117,7 @@ fn test_lazy_column_with_filter() {
     
     // Filter using lazy column
     let result = execute_line(&mut db, "SELECT * FROM test WHERE next_year > 30", 6).unwrap();
-    if let vector_db_rs::dsl::DslOutput::Table(ds) = result {
+    if let linal::dsl::DslOutput::Table(ds) = result {
         assert_eq!(ds.rows.len(), 2); // 30+1=31 and 35+1=36
     } else {
         panic!("Expected table output");
@@ -146,7 +146,7 @@ fn test_lazy_column_complex_expression() {
     execute_line(&mut db, "DATASET test ADD COLUMN result = (a + b) * c LAZY", 3).unwrap();
     
     let result = execute_line(&mut db, "SELECT result FROM test", 4).unwrap();
-    if let vector_db_rs::dsl::DslOutput::Table(ds) = result {
+    if let linal::dsl::DslOutput::Table(ds) = result {
         assert_eq!(ds.rows.len(), 1);
         assert_eq!(ds.rows[0].values[0], Value::Int(9)); // (1 + 2) * 3
     } else {
@@ -165,7 +165,7 @@ fn test_lazy_column_with_float() {
     execute_line(&mut db, "DATASET test ADD COLUMN tax = price * 0.1 LAZY", 3).unwrap();
     
     let result = execute_line(&mut db, "SELECT tax FROM test", 4).unwrap();
-    if let vector_db_rs::dsl::DslOutput::Table(ds) = result {
+    if let linal::dsl::DslOutput::Table(ds) = result {
         assert_eq!(ds.rows.len(), 1);
         if let Value::Float(tax) = ds.rows[0].values[0] {
             assert!((tax - 1.05).abs() < 0.001); // 10.5 * 0.1

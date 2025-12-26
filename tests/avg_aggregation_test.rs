@@ -2,9 +2,9 @@
 //
 // Tests for AVG aggregation function
 
-use vector_db_rs::{execute_script, TensorDb};
-use vector_db_rs::core::value::Value;
-use vector_db_rs::dsl::execute_line;
+use linal::{execute_script, TensorDb};
+use linal::core::value::Value;
+use linal::dsl::execute_line;
 
 #[test]
 fn test_avg_basic_int() {

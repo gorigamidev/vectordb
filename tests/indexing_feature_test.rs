@@ -1,4 +1,4 @@
-use vector_db_rs::engine::TensorDb;
+use linal::engine::TensorDb;
 
 #[test]
 fn test_indexing_workflow() {
@@ -10,7 +10,7 @@ fn test_indexing_workflow() {
     // But direct Engine access is also fine.
     // Let's use `execute_script` helper if available? It's in `dsl` module.
     // But I can't access private modules easily in integration tests unless they are public.
-    // `vector_db_rs::dsl::execute_script` is public.
+    // `linal::dsl::execute_script` is public.
 
     // Test Script
     let script = r#"
@@ -26,7 +26,7 @@ fn test_indexing_workflow() {
     SHOW INDEXES
     "#;
 
-    vector_db_rs::dsl::execute_script(&mut db, script).expect("Script execution failed");
+    linal::dsl::execute_script(&mut db, script).expect("Script execution failed");
 
     // Verify indices exist via public API or by checking output (harder)
     // We can use db.list_indices() if it's public.

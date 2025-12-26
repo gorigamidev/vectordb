@@ -1,8 +1,8 @@
 // use std::sync::Arc;
-use vector_db_rs::core::value::Value;
-use vector_db_rs::engine::TensorDb;
-use vector_db_rs::query::logical::{Expr, LogicalPlan};
-use vector_db_rs::query::planner::Planner;
+use linal::core::value::Value;
+use linal::engine::TensorDb;
+use linal::query::logical::{Expr, LogicalPlan};
+use linal::query::planner::Planner;
 
 #[test]
 fn test_planner_index_selection() {
@@ -13,7 +13,7 @@ fn test_planner_index_selection() {
     INSERT INTO users VALUES (1, "Alice")
     INSERT INTO users VALUES (2, "Bob")
     "#;
-    vector_db_rs::dsl::execute_script(&mut db, script).expect("Setup failed");
+    linal::dsl::execute_script(&mut db, script).expect("Setup failed");
 
     let dataset = db.get_dataset("users").expect("Dataset users not found");
     let schema = dataset.schema.clone();
@@ -56,13 +56,13 @@ fn test_explain_command() {
     DATASET users COLUMNS (id: Int, name: String)
     CREATE INDEX name_idx ON users(name)
     "#;
-    vector_db_rs::dsl::execute_script(&mut db, script).expect("Setup failed");
+    linal::dsl::execute_script(&mut db, script).expect("Setup failed");
 
     let explain_cmd = r#"EXPLAIN DATASET users_filtered FROM users FILTER name = "Bob""#;
-    let output = vector_db_rs::dsl::execute_line(&mut db, explain_cmd, 0);
+    let output = linal::dsl::execute_line(&mut db, explain_cmd, 0);
 
     match output {
-        Ok(vector_db_rs::dsl::DslOutput::Message(msg)) => {
+        Ok(linal::dsl::DslOutput::Message(msg)) => {
             assert!(msg.contains("--- Logical Plan ---"));
             assert!(msg.contains("--- Physical Plan ---"));
             // println!("{}", msg); // Can't print in test unless failed or --nocapture
@@ -79,13 +79,13 @@ fn test_explain_command() {
     DATASET vectors COLUMNS (id: Int, v: Vector(2))
     CREATE VECTOR INDEX v_idx ON vectors(v)
     "#;
-    vector_db_rs::dsl::execute_script(&mut db, setup_vector).expect("Vector setup failed");
+    linal::dsl::execute_script(&mut db, setup_vector).expect("Vector setup failed");
 
     let explain_search_cmd = r#"EXPLAIN SEARCH res FROM vectors QUERY [1.0, 1.0] ON v K=5"#;
-    let output_search = vector_db_rs::dsl::execute_line(&mut db, explain_search_cmd, 0);
+    let output_search = linal::dsl::execute_line(&mut db, explain_search_cmd, 0);
 
     match output_search {
-        Ok(vector_db_rs::dsl::DslOutput::Message(msg)) => {
+        Ok(linal::dsl::DslOutput::Message(msg)) => {
             assert!(msg.contains("VectorSearch"));
         }
         _ => panic!(

@@ -2,9 +2,9 @@
 //
 // Tests for computed columns in ADD COLUMN
 
-use vector_db_rs::{execute_script, TensorDb};
-use vector_db_rs::core::value::Value;
-use vector_db_rs::dsl::{execute_line, DslOutput};
+use linal::{execute_script, TensorDb};
+use linal::core::value::Value;
+use linal::dsl::{execute_line, DslOutput};
 
 #[test]
 fn test_add_computed_column_basic() {
