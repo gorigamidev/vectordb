@@ -138,6 +138,16 @@ pub fn execute_line(db: &mut TensorDb, line: &str, line_no: usize) -> Result<Dsl
                 msg: format!("Unsupported CREATE command: {}", line),
             })
         }
+    } else if line.starts_with("ALTER ") {
+        let line = line.strip_prefix("ALTER ").unwrap();
+        if line.starts_with("DATASET ") {
+            handlers::dataset::handle_dataset(db, line, line_no)
+        } else {
+            Err(DslError::Parse {
+                line: line_no,
+                msg: format!("Unsupported ALTER command: {}", line),
+            })
+        }
     } else if line.starts_with("USE ") {
         handlers::instance::handle_use_database(db, line, line_no)
     } else if line.starts_with("DROP ") {

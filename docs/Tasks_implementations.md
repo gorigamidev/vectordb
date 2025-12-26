@@ -223,6 +223,20 @@ This section refines and extends the roadmap starting from Phase 5.5, with the e
 - [x] Startup/shutdown hooks (Startup recovery implemented)
 - [x] Graceful recovery from disk
 
+## Phase 10.5: Robust Metadata System ✅
+
+- [x] Add `chrono` dependency for ISO timestamps
+- [x] Update `DatasetMetadata` struct with versioning, `updated_at`, and `extra` fields
+- [x] Implement `SET DATASET METADATA` DSL command
+- [x] Verify persistence and readability of new metadata format
+
+## Phase 10.6: CLI Parity & Multi-line Support ✅
+
+- [x] Refactor script runner for multi-line support
+- [x] Add routing for `ALTER DATASET` in DSL
+- [x] Fix `GROUP BY` type inference for grouping columns
+- [x] Verify all past features via comprehensive smoke test
+
 ---
 
 ## Phase 11: CLI & Server Hardening

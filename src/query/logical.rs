@@ -98,26 +98,22 @@ impl LogicalPlan {
                 // Schema consists of Group keys + Aggregation results
                 let mut fields = Vec::new();
                 // 1. Group keys
+                let input_schema = input.schema();
                 for expr in group_expr {
                     if let Expr::Column(name) = expr {
-                        // We assume specific types for now or can lookup in input schema if available.
-                        // But we don't have input schema here easily without evaluating expr schema.
-                        // For MVP: Aggregate variant usually provides output schema or we infer it.
-                        // Let's infer name at least. field type is tricky without full type system.
-                        // Hack: for now use placeholder ValueType::String or try to get from input?
-                        // Better: We should probably store schema in the LogicalPlan node like Scan does.
-                        // But to proceed without major refactor, let's create a minimal schema.
-                        // Actually, we can get Name from expr.
-                        fields.push(crate::core::tuple::Field::new(
-                            name,
-                            crate::core::value::ValueType::String,
-                        )); // Placeholder type
+                        let typ = infer_expr_type_full(expr, &input_schema);
+                        fields.push(crate::core::tuple::Field::new(name, typ));
                     }
                 }
                 // 2. Aggregates
                 for expr in aggr_expr {
                     if let Expr::AggregateExpr { func, expr: inner } = expr {
-                        let name = format!("{:?}", func); // e.g., "Count"
+                        let col_name = match inner.as_ref() {
+                            Expr::Column(n) => n.clone(),
+                            _ => "val".to_string(),
+                        };
+                        let name =
+                            format!("{}({})", format!("{:?}", func).to_uppercase(), col_name);
                         let mut typ = crate::core::value::ValueType::Int; // Default
 
                         // Infer for SUM/MIN/MAX if inner is likely Vector (not perfect, but MVP)

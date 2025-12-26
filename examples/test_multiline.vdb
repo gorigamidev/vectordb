@@ -1,0 +1,6 @@
+DATASET test_ds COLUMNS (
+    id: INT,
+    name: STRING
+)
+INSERT INTO test_ds VALUES (1, "MultiLine")
+SHOW ALL DATASETS

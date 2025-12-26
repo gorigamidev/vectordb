@@ -2,9 +2,9 @@ use clap::{Parser, Subcommand};
 use std::fs;
 use std::io::{self, BufRead, Write};
 use std::sync::{Arc, Mutex};
+use toon_format::encode_default;
 use vector_db_rs::dsl::{execute_line, DslOutput};
 use vector_db_rs::engine::TensorDb;
-use toon_format::encode_default;
 use vector_db_rs::server::start_server;
 
 #[derive(Parser)]
@@ -49,31 +49,62 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(Commands::Run { file, format }) => {
             let content = fs::read_to_string(&file)?;
             let use_toon = format == "toon";
-            
-            // Execute script line by line with appropriate output format
-            for (line_num, line) in content.lines().enumerate() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
+
+            let mut current_cmd = String::new();
+            let mut start_line = 0;
+            let mut paren_balance = 0;
+
+            for (idx, raw_line) in content.lines().enumerate() {
+                let line = raw_line.trim();
+
+                if current_cmd.is_empty() {
+                    if line.is_empty() || line.starts_with('#') || line.starts_with("//") {
+                        continue;
+                    }
+                    start_line = idx + 1;
                 }
-                
-                match execute_line(&mut db, line, line_num + 1) {
-                    Ok(output) => {
-                        if !matches!(output, DslOutput::None) {
-                            if use_toon {
-                                let toon = encode_default(&output)
-                                    .unwrap_or_else(|e| format!("Error encoding TOON: {}", e));
-                                println!("{}", toon);
-                            } else {
-                                println!("{}", output);
+
+                if !current_cmd.is_empty() {
+                    current_cmd.push(' ');
+                }
+                current_cmd.push_str(line);
+
+                for c in line.chars() {
+                    if c == '(' {
+                        paren_balance += 1;
+                    } else if c == ')' {
+                        paren_balance -= 1;
+                    }
+                }
+
+                if paren_balance == 0 {
+                    match execute_line(&mut db, &current_cmd, start_line) {
+                        Ok(output) => {
+                            if !matches!(output, DslOutput::None) {
+                                if use_toon {
+                                    let toon = encode_default(&output)
+                                        .unwrap_or_else(|e| format!("Error encoding TOON: {}", e));
+                                    println!("{}", toon);
+                                } else {
+                                    println!("{}", output);
+                                }
                             }
                         }
+                        Err(e) => {
+                            eprintln!("Error on line {}: {}", start_line, e);
+                            std::process::exit(1);
+                        }
                     }
-                    Err(e) => {
-                        eprintln!("Error on line {}: {}", line_num + 1, e);
-                        std::process::exit(1);
-                    }
+                    current_cmd.clear();
                 }
+            }
+
+            if !current_cmd.is_empty() {
+                eprintln!(
+                    "Error: Script ended with unbalanced parentheses starting at line {}",
+                    start_line
+                );
+                std::process::exit(1);
             }
         }
         Some(Commands::Server { port }) => {
@@ -83,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some(Commands::Repl { format }) => {
             let use_toon = format == "toon";
-            
+
             println!("VectorDB REPL v0.1");
             if use_toon {
                 println!("Output format: TOON (machine-readable)");
@@ -91,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Output format: Display (human-readable)");
             }
             println!("Type 'EXIT' to quit.");
-            
+
             let stdin = io::stdin();
             let mut handle = stdin.lock();
             let mut buffer = String::new();
@@ -128,7 +159,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("VectorDB REPL v0.1");
             println!("Output format: Display (human-readable)");
             println!("Type 'EXIT' to quit.");
-            
+
             let stdin = io::stdin();
             let mut handle = stdin.lock();
             let mut buffer = String::new();

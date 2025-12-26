@@ -101,29 +101,53 @@ USE default
 SHOW ALL DATASETS
 ```
 
-### 6. Multi-Paradigm Access
+### 6. Robust Metadata System
 
-**REPL (Interactive Shell)**
+Add custom, searchable metadata and versioning to your datasets.
+
+```sql
+-- Set custom metadata tags and versions
+SET DATASET users METADATA version = "1.0.0"
+SET DATASET users METADATA tags = "scientific,test"
+
+-- Metadata is automatically tracked with ISO-8601 timestamps
+-- (created_at, updated_at) and custom 'extra' fields.
+```
+
+---
+
+## Multi-Paradigm Access
+
+VectorDB provides a unified interface across all access methods.
+
+### 1. Interactive REPL (Shell)
+
+Designed for live data exploration. Supports command history and flexible output formatting.
 
 ```bash
-# Default: Human-readable output
+# Start the interactive shell
 cargo run -- repl
 
-# TOON format for scripting/automation
+# Use machine-readable TOON output
 cargo run -- repl --format=toon
 ```
 
-**Script Execution**
+### 2. Script Execution (Automation)
+
+The `run` command executes `.vdb` script files. Scripts support **multi-line commands** (e.g., complex `DATASET` definitions) using balanced parentheses logic.
 
 ```bash
-# Run .vdb script files
-cargo run -- run examples/features_demo.vdb
+# Run a script file
+cargo run -- run examples/smoke_test.vdb
 
-# With TOON output
-cargo run -- run script.vdb --format=toon
+# Scripts handle multi-line definitions gracefully:
+# DATASET users COLUMNS (
+#    id: INT,
+#    embedding: VECTOR(128)
+# )
 ```
 
-**HTTP Server**
+### 3. HTTP Server
 
 ```bash
 # Start server on port 8080

@@ -1,0 +1,52 @@
+// --- Phase 10: Multi-Database Support ---
+CREATE DATABASE smoke_db_final
+USE smoke_db_final
+SHOW DATABASES
+
+// --- Phase 3 & 5.5: Datasets & Schema ---
+DATASET users COLUMNS (
+    id: INT,
+    age: INT,
+    score: FLOAT,
+    embedding: VECTOR(3)
+)
+
+INSERT INTO users VALUES (1, 25, 85.0, [0.1, 0.2, 0.3])
+INSERT INTO users VALUES (2, 30, 90.0, [0.4, 0.5, 0.6])
+INSERT INTO users VALUES (3, 22, 75.5, [0.7, 0.8, 0.9])
+
+// --- Phase 5.5: Computed Columns ---
+ALTER DATASET users ADD COLUMN double_age = age * 2
+ALTER DATASET users ADD COLUMN triple_age = age * 3 LAZY
+
+SHOW SCHEMA users
+
+// --- Phase 8: Aggregations ---
+SELECT age, SUM(score), AVG(score) FROM users GROUP BY age
+
+// --- Phase 6: Indexing ---
+CREATE INDEX idx_age ON users(age)
+CREATE VECTOR INDEX idx_v ON users(embedding)
+SHOW INDEXES
+
+// --- Phase 7: Search ---
+SEARCH users WHERE embedding ~= [0.2, 0.3, 0.4] LIMIT 2
+
+// --- Phase 10.5: Metadata ---
+SET DATASET users METADATA version = "1.0.0"
+SET DATASET users METADATA tags = "scientific,test"
+
+// --- Phase 9: Persistence ---
+SAVE DATASET users
+LIST DATASETS
+
+// --- Cleanup & Context Switching ---
+CREATE DATABASE temp_db
+USE temp_db
+DATASET dummy COLUMNS (x: INT)
+INSERT INTO dummy VALUES (1)
+SHOW ALL DATASETS
+
+DROP DATABASE temp_db
+USE analytics
+SHOW ALL DATASETS
