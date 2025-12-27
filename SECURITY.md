@@ -169,10 +169,12 @@ LINAL is designed as an **in-memory analytical engine** for trusted environments
 ## Security Updates
 
 Security updates will be released as:
+
 - **Patch releases** (e.g., 0.1.4 → 0.1.5) for critical/high severity
 - **Minor releases** (e.g., 0.1.x → 0.2.0) for medium/low severity
 
 All security updates will be documented in:
+
 - `CHANGELOG.md` (with security section)
 - GitHub Security Advisories
 - Release notes
@@ -194,11 +196,12 @@ Regular dependency updates help maintain security.
 
 ## Reporting Security Issues
 
-**Email**: security@gorigami.xyz
+**Email**: dev@gorigami.xyz
 
 **PGP Key**: (if available)
 
 Please include:
+
 - Description of the vulnerability
 - Steps to reproduce
 - Potential impact
@@ -209,6 +212,7 @@ Please include:
 ## Acknowledgments
 
 We thank security researchers who responsibly disclose vulnerabilities. Contributors will be acknowledged (with permission) in:
+
 - Security advisories
 - Release notes
 - `CHANGELOG.md`
@@ -231,5 +235,4 @@ Future security enhancements planned:
 
 **Last Updated**: 2024
 
-For questions about security, contact: security@gorigami.xyz
-
+For questions about security, contact: dev@gorigami.xyz

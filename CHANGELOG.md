@@ -8,15 +8,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
+
 - GPU-backed tensor execution
 - Distributed execution
 - Columnar execution engine
 - Python/WASM integration
 - Native ML operators (KNN, clustering, PCA)
 
+## [0.1.6] - Tensor-First Datasets & Performance
+
+### Added
+
+- **Tensor-First Datasets (Zero-Copy Views)**
+  - Support for creating datasets directly from named tensors via `LET ds = dataset("name")`.
+  - Dot notation support for dataset columns in DSL expressions (`ds.column`).
+  - Metadata-only column addition (`ds.add_column("name", var)`) for O(1) complexity.
+  - Reverse integration: Operation results can be added back to datasets without data copies.
+  - On-demand materialization: Automatic conversion of tensor views to Parquet during `SAVE DATASET`.
+
+- **Robustness & Integrity**
+  - Strict row-count validation for all dataset columns.
+  - On-demand integrity audits for dangling tensor references.
+  - Health warnings in `SHOW` command for missing data dependencies.
+
+- **Specialized Benchmarking**
+  - New `benches/dataset_ops.rs` suite for tracking metadata and resolution overhead.
+  - Performance report available in `docs/TENSOR_FIRST_PERFORMANCE.md`.
+
+### Improved
+
+- **Tensor Kernel Performance**
+  - Implemented fast-path optimization for identical-shape tensor operations.
+  - Recovered performance regressions, resulting in 10-15% speedups for core vector/matrix math.
+- **Maintenance**
+  - Updated `SECURITY.md` contact information to `dev@gorigami.xyz`.
+  - Updated `README.md` copyright to 2025.
+
 ## [0.1.5] - Phase 12: Public Readiness
 
 ### Added
+
 - **Architectural Documentation**
   - Comprehensive architecture document (`docs/ARCHITECTURE.md`)
   - System architecture overview
@@ -48,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Known limitations and recommendations
 
 ### Changed
+
 - Updated README with links to new documentation
 - Enhanced documentation structure
 - Project ready for public release
@@ -55,6 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.4] - Phase 11: CLI & Server Hardening
 
 ### Added
+
 - **Professional REPL (LINAL Shell)**
   - Integrated `rustyline` for persistent command history
   - Multi-line input support with balanced parentheses logic
@@ -72,12 +105,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - OpenAPI / Swagger UI: Built-in interactive API documentation available at `/swagger-ui`
 
 ### Changed
+
 - Improved REPL user experience with better error messages and visual feedback
 - Server now validates all requests before processing
 
 ## [0.1.3] - Phase 10: Engine Lifecycle & Instance Management
 
 ### Added
+
 - **Multi-Database Engine**
   - Named database instances with isolated DatasetStores
   - `CREATE DATABASE` and `DROP DATABASE` commands
@@ -104,6 +139,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.2] - Phase 8.5 & 9: Interface Standardization & Persistence
 
 ### Added
+
 - **Interface Standardization (Phase 8.5)**
   - Server API refactor: Accept raw DSL text via `text/plain` content type
   - JSON backward compatibility with deprecation warnings
@@ -133,12 +169,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic lazy evaluation in queries
 
 ### Changed
+
 - Server now defaults to TOON format output
 - CLI output format can be controlled via `--format` flag
 
 ## [0.1.1] - Phase 8: Aggregations & GROUP BY
 
 ### Added
+
 - **GROUP BY Execution**
   - Full GROUP BY support with multiple grouping columns
   - Aggregation functions:
@@ -156,6 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - Phase 7: Query Planning & Optimization
 
 ### Added
+
 - **Query Planning System**
   - Logical query plan representation
   - Physical execution plan
@@ -168,6 +207,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.9] - Phase 6: Indexing & Access Paths
 
 ### Added
+
 - **Index System**
   - `Index` trait definition
   - `HashIndex` implementation for exact match lookups
@@ -182,6 +222,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.8] - Phase 5.5: Feature Catch-up
 
 ### Added
+
 - **STACK Operation**
   - Tensor stacking operation
 
@@ -207,6 +248,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.7] - Phase 5: TOON Integration & Server Refactor
 
 ### Added
+
 - **TOON Format Support**
   - `toon-format` dependency
   - Serialize implementation for core types (Tensor, Dataset, DslOutput)
@@ -214,12 +256,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automated tests for TOON header and body
 
 ### Changed
+
 - Server output format changed to TOON
 - Project structure cleanup (moved docs, deleted temp files)
 
 ## [0.0.6] - Phase 4: Server & CLI
 
 ### Added
+
 - **CLI Implementation**
   - Subcommands: `repl`, `run`, `server`
   - Structured output via `DslOutput`
@@ -231,6 +275,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.5] - Restructuring (Architectural Overhaul)
 
 ### Changed
+
 - **Modular Architecture**
   - Restructured `src/` into modular components:
     - `core/` - tensor, value, tuple, dataset, store
@@ -243,6 +288,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.4] - Phase 3: DSL Dataset Operations
 
 ### Added
+
 - **Dataset DSL Commands**
   - `DATASET` command for dataset creation
   - `INSERT INTO` command for row insertion
@@ -251,6 +297,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.3] - Phase 2: Engine Integration
 
 ### Added
+
 - DatasetStore integration into TensorDb
 - `create_dataset` and `insert_row` methods
 - EngineError to DatasetStoreError mapping
@@ -258,6 +305,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.2] - Phase 1: Dataset Store
 
 ### Added
+
 - **DatasetStore Implementation**
   - Name-based and ID-based access
   - Insert, get, remove operations
@@ -267,6 +315,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.1] - Phase 0: Preparation
 
 ### Added
+
 - Fixed Cargo.toml edition (2024 → 2021)
 - `ADD COLUMN` for datasets (with DEFAULT values and nullable support)
 - `GROUP BY` with aggregations (SUM, AVG, COUNT, MIN, MAX)
@@ -281,6 +330,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Project Identity (Phase 13)
 
 ### Naming Decisions
+
 - **Project Name**: **LINAL** (derived from *Linear Algebra*)
 - **Engine**: LINAL Engine
 - **CLI Binary**: `linal`
@@ -288,7 +338,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **File Extension**: `.lnl` for LINAL scripts
 
 ### Scope
+
 LINAL is positioned as:
+
 - An **in-memory analytical engine**
 - Focused on linear algebra (vectors, matrices, tensors) and structured datasets
 - SQL-inspired querying combined with algebraic operations
@@ -296,7 +348,9 @@ LINAL is positioned as:
 
 ---
 
-[Unreleased]: https://github.com/gorigami/linal/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/gorigami/linal/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/gorigami/linal/compare/v0.1.5...v0.1.6
+[0.1.5]: https://github.com/gorigami/linal/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/gorigami/linal/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/gorigami/linal/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/gorigami/linal/compare/v0.1.1...v0.1.2
@@ -311,4 +365,3 @@ LINAL is positioned as:
 [0.0.3]: https://github.com/gorigami/linal/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/gorigami/linal/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/gorigami/linal/releases/tag/v0.0.1
-
