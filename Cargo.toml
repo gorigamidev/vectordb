@@ -27,3 +27,12 @@ chrono = { version = "0.4.39", features = ["serde"] }
 
 [dev-dependencies]
 reqwest = { version = "0.12.25", features = ["json"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "tensor_ops"
+harness = false
+
+[[bench]]
+name = "queries"
+harness = false

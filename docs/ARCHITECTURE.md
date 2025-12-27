@@ -78,8 +78,8 @@ The engine is built in Rust with a modular architecture that separates concerns 
         │  │   Store      │  │   Store      │ │
         │  └──────────────┘  └──────────────┘ │
         │  ┌──────────────┐  ┌──────────────┐ │
-        │  │   Hash      │  │   Vector      │ │
-        │  │   Index     │  │   Index       │ │
+        │  │   Hash       │  │   Vector     │ │
+        │  │   Index      │  │   Index      │ │
         │  └──────────────┘  └──────────────┘ │
         └──────────────────┬──────────────────┘
                            │
