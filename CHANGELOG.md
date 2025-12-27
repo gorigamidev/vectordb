@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Python/WASM integration
 - Native ML operators (KNN, clustering, PCA)
 
-## [0.1.6] - Tensor-First Datasets & Performance
+## [0.1.6] - 2025-12-27
 
 ### Added
 

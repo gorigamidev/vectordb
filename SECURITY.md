@@ -18,7 +18,7 @@ If you discover a security vulnerability in LINAL, please report it responsibly.
 ### How to Report
 
 1. **Do NOT** open a public GitHub issue
-2. Email security details to: **security@gorigami.xyz**
+2. Email security details to: **<security@gorigami.xyz>**
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
@@ -170,7 +170,7 @@ LINAL is designed as an **in-memory analytical engine** for trusted environments
 
 Security updates will be released as:
 
-- **Patch releases** (e.g., 0.1.4 → 0.1.5) for critical/high severity
+- **Patch releases** (e.g., 0.1.5 → 0.1.6) for critical/high severity
 - **Minor releases** (e.g., 0.1.x → 0.2.0) for medium/low severity
 
 All security updates will be documented in:
@@ -196,7 +196,7 @@ Regular dependency updates help maintain security.
 
 ## Reporting Security Issues
 
-**Email**: dev@gorigami.xyz
+**Email**: <dev@gorigami.xyz>
 
 **PGP Key**: (if available)
 
@@ -233,6 +233,6 @@ Future security enhancements planned:
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2025
 
-For questions about security, contact: dev@gorigami.xyz
+For questions about security, contact: <dev@gorigami.xyz>
