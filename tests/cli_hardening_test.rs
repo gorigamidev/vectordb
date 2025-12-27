@@ -6,7 +6,7 @@ use std::path::Path;
 use std::process::Command;
 
 fn get_bin() -> String {
-    "target/debug/vector-db-rs".to_string()
+    "target/debug/linal".to_string()
 }
 
 #[test]

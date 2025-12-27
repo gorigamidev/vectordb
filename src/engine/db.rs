@@ -394,6 +394,37 @@ impl TensorDb {
         self.active_instance_mut()
             .set_dataset_metadata(name, key, value)
     }
+
+    /// Execute a DSL command with an execution context for resource management
+    /// This is an opt-in API that provides arena allocation and automatic cleanup
+    pub fn execute_with_context(
+        &mut self,
+        ctx: &mut crate::engine::context::ExecutionContext,
+        command: &str,
+    ) -> Result<crate::dsl::DslOutput, crate::dsl::DslError> {
+        use crate::dsl::execute_line;
+
+        // For Phase 1, just call existing implementation
+        // Phase 2 will use ctx for arena allocation
+        let result = execute_line(self, command, 1)?;
+
+        // Cleanup any tracked resources
+        self.cleanup_context_resources(ctx);
+
+        Ok(result)
+    }
+
+    /// Clean up resources tracked by an execution context
+    /// Note: For Phase 1, we just clear the tracking. Full cleanup will be implemented
+    /// in Phase 2 when we add proper resource management to the stores.
+    pub(crate) fn cleanup_context_resources(
+        &mut self,
+        ctx: &mut crate::engine::context::ExecutionContext,
+    ) {
+        // For now, just clear the tracked resources
+        // In Phase 2, we'll implement proper removal when stores support it
+        ctx.clear_tracked();
+    }
 }
 
 impl DatabaseInstance {

@@ -1840,6 +1840,7 @@ version = "0.1.5"
 dependencies = [
  "arrow",
  "axum",
+ "bumpalo",
  "chrono",
  "clap",
  "colored",
