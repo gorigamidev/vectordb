@@ -345,13 +345,19 @@ cd linal
 cargo build --release
 ```
 
-### Running the Example
+### Running Examples
 
-We have a comprehensive feature demo script included.
+We have several example scripts demonstrating LINAL's capabilities:
 
 ```bash
-# Run the features demo
+# Comprehensive feature demo
 cargo run -- run examples/features_demo.lnl
+
+# End-to-end workflow example
+cargo run -- run examples/end_to_end.lnl
+
+# Performance benchmark
+cargo run -- run examples/benchmark.lnl
 ```
 
 ### Interactive REPL
@@ -375,9 +381,18 @@ $ cargo run
 
 ## Documentation
 
-- [DSL Reference](docs/DSL_REFERENCE.md)
-- [Roadmap & Status](docs/ROADMAP.md)
-- [TOON Format](TOON_FORMAT.md)
+- [Architecture](docs/ARCHITECTURE.md) - System architecture and design
+- [DSL Reference](docs/DSL_REFERENCE.md) - Complete DSL command reference
+- [Roadmap & Status](docs/Tasks_implementations.md) - Development roadmap
+- [Changelog](CHANGELOG.md) - Version history
+- [Contributing](CONTRIBUTING.md) - How to contribute
+- [Security](SECURITY.md) - Security policy and considerations
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2024 gorigami (gorigami.xyz)
 
 ---
 

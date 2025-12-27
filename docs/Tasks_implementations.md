@@ -258,16 +258,16 @@ This section refines and extends the roadmap starting from Phase 5.5, with the e
 
 ---
 
-## Phase 12: Public Readiness
+## Phase 12: Public Readiness ✅
 
 > Goal: Make the project open-source ready and approachable.
 
-- [ ] Write architectural documentation
-- [ ] Add end-to-end examples
-- [ ] Benchmark in-memory vs persisted workloads
-- [ ] Add contribution guidelines
-- [ ] Add security considerations
-- [ ] Prepare first public release (v0.1.0)
+- [x] Write architectural documentation
+- [x] Add end-to-end examples
+- [x] Benchmark in-memory vs persisted workloads
+- [x] Add contribution guidelines
+- [x] Add security considerations
+- [x] Prepare first public release (v0.1.0)
 
 ---
 
